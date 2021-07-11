@@ -26,15 +26,15 @@ class PathPart:
 class Pathfinder:
 
     def __init__(self, mapGridSize):
-        self.map
+        self.map = None
         self.mapGridSize = mapGridSize
-        self.distanceToReachTiles = np.array()
-        self.tails
         self.sqrtOf2 = math.sqrt(2)
-        self.targetCoord
-        self.distanceFromGridsToTarget
-        self.distanceToGrid
-        self.parentOfGrid
+        self.distanceToReachTiles = None
+        self.tails = None
+        self.targetCoord = None
+        self.distanceToGrid = None
+        self.parentOfGridX = None
+        self.parentOfGridY = None
         
     #return a list of tuple
     #the first entry is another tuple representing the position of the field
@@ -67,7 +67,7 @@ class Pathfinder:
     def is_new_field_valid(self, fieldCoord):
         return (is_field_valid
         #check that field was not visited already
-        and self.distanceFromGridsToTarget[fieldCoord] == 0)
+        and self.parentOfGridX[fieldCoord] == None)
 
 
     def get_min_distance_to_target(self, fromCoord):
@@ -80,52 +80,60 @@ class Pathfinder:
     def add_field_to_tails(self, fieldCoord, parentCoord, previousDistance):
         minDistance = get_min_distance_to_target(fieldCoord)
         total_distance = previousDistance + minDistance
-        self.parentOfGrid[fieldCoord] = parentCoord
+        self.parentOfGridX[fieldCoord] = parentCoord[0]
+        self.parentOfGridY[fieldCoord] = parentCoord[1]
         self.distanceToGrid[fieldCoord] = previousDistance
-        self.distanceFromGridsToTarget[fieldCoord] = minDistance
         heappush(self.tails, (total_distance, fieldCoord))
 
     def advance_closest(self):
         closestCoord = heappop(self.tails)[1]
-        previousDistance = self.distanceFromGridsToTarget[closestCoord]
+        previousDistance = self.distanceToGrid[closestCoord]
         for neighbourInfo in get_adjacent_fields(closestCoord):
             if(is_new_field_valid(neighbourInfo[0])):
                 field_evaluation = neighbourInfo[1] + previousDistance
                 add_field_to_tails(neighbourInfo[0], closestCoord, field_evaluation)
 
     def has_reached_target(self):
-        return self.parentOfGrid[self.targetCoord] != None
+        return self.parentOfGridX[self.targetCoord] >= 0
 
-    def buid_path(self):
+    def get_path(self):
         path = []
         lastParent = self.targetCoord
-        nextParent = self.parentOfGrid[lastParent]
+        nextParent = (self.parentOfGridX[lastParent], self.parentOfGridY[lastParent])
         path.append(lastParent)
         while(lastParent != nextParent):
             lastParent = nextParent
-            nextParent = self.parentOfGrid[lastParent]
+            nextParent = (self.parentOfGridX[lastParent], self.parentOfGridY[lastParent])
             path.append(lastParent)
 
+    #returns a tuple, where the first entry is a bool, if a path was found
+    #the second entry is a stack with all the map coordinates in the shortest path
     def get_path_to(self, startCoord, toCoord, map):
         self.map = map
         self.targetCoord = toCoord
         if not is_field_valid(startCoord) or not is_field_valid(toCoord):
             return (false, [])
         
+        result = (None, None)
         self.distanceToGrid = np.zeros((self.mapGridSize, self.mapGridSize), dtype=float)
-        self.distanceFromGridsToTarget = np.zeros((self.mapGridSize, self.mapGridSize), dtype=float)
-        self.parentOfGrid = np.array((self.mapGridSize, self.mapGridSize), dtype=(int, int), like=None)
+        self.parentOfGridX = np.full((self.mapGridSize, self.mapGridSize), -1, dtype=int)
+        self.parentOfGridY = np.full((self.mapGridSize, self.mapGridSize), -1, dtype=int)
         self.tails = []
 
         add_field_to_tails(startCoord,startCoord)
         
         self.closest = fromCoord
-        while(not has_reached_target and len(self.tails > 0)):
+        while(not has_reached_target() and len(self.tails > 0)):
+            advance_closest()
 
+        if has_reached_target():
+            result = (true, get_path())
+        else :
+            result = (false,[])
 
-    
+        self.distanceToGrid = None
+        self.parentOfGridX = None
+        self.parentOfGridY = None
 
-    def lower_bound_distance(fromX, fromY, toX, toY):
-        return math.sqrt((fromX - toX) ** 2, (fromY - toY) ** 2)
-
+        return result
     
