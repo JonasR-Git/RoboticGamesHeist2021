@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
 import math
 import random
+import numpy as np
 
 ROBOTER_SPEED = 0.22
 TIME_INTERVAL = 2
 MAX_TRAVEL_DISTANCE_BETWEEN_INTERVAL = ROBOTER_SPEED * TIME_INTERVAL
+MAX_NOISE = 0.44
 
 
 def calculate_distance_between_2_points(x1, x2, y1, y2):
@@ -75,16 +77,16 @@ class AdjustEnemyPosition:
 		while i < len(self.enemy_pos_original):
 			random_x = 10
 			random_y = 10
-			while pow(random_x, 2) + pow(random_y, 2) > ROBOTER_SPEED * TIME_INTERVAL:
+			while MAX_NOISE < pow(random_x, 2) + pow(random_y, 2) > MAX_NOISE/2:
 				if random.uniform(0, 1) > 0:
-					random_x = - random.uniform(-ROBOTER_SPEED * TIME_INTERVAL, ROBOTER_SPEED * TIME_INTERVAL)
+					random_x = - random.uniform(-MAX_NOISE, MAX_NOISE)
 				else:
-					random_x = random.uniform(-ROBOTER_SPEED * TIME_INTERVAL, ROBOTER_SPEED * TIME_INTERVAL)
+					random_x = random.uniform(-MAX_NOISE, MAX_NOISE)
 
 				if random.uniform(0, 1) > 0:
-					random_y = - random.uniform(-ROBOTER_SPEED * TIME_INTERVAL, ROBOTER_SPEED * TIME_INTERVAL)
+					random_y = - random.uniform(-MAX_NOISE, MAX_NOISE)
 				else:
-					random_y = random.uniform(-ROBOTER_SPEED * TIME_INTERVAL, ROBOTER_SPEED * TIME_INTERVAL)
+					random_y = random.uniform(-MAX_NOISE, MAX_NOISE)
 
 			self.enemy_pos_noise.append(self.enemy_pos_original[i] + random_x)
 			self.enemy_pos_noise.append(self.enemy_pos_original[i + 1] + random_y)
@@ -102,9 +104,8 @@ class AdjustEnemyPosition:
 			i = i + 1
 
 	def idea_get_points_closer_together(self):
-		print(self.enemy_pos_noise_x)
-		self.enemy_pos_refactor_x_idea2 = self.enemy_pos_noise_x
-		self.enemy_pos_refactor_y_idea2 = self.enemy_pos_noise_y
+		self.enemy_pos_refactor_x_idea2 = np.copy(self.enemy_pos_noise_x)
+		self.enemy_pos_refactor_y_idea2 = np.copy(self.enemy_pos_noise_y)
 		i = len(self.enemy_pos_refactor_x_idea2) - 1
 		while i > 0:
 			self.enemy_pos_refactor_x_idea2[i], self.enemy_pos_refactor_x_idea2[i - 1], self.enemy_pos_refactor_y_idea2[
@@ -112,8 +113,6 @@ class AdjustEnemyPosition:
 				self.enemy_pos_refactor_x_idea2[i], self.enemy_pos_refactor_x_idea2[i - 1],
 				self.enemy_pos_refactor_y_idea2[i], self.enemy_pos_refactor_y_idea2[i - 1])
 			i = i - 1
-		print(self.enemy_pos_refactor_x_idea2)
-		print(self.enemy_pos_noise_x)    #Warum hat hier ENEMY_POS_NOISE_X andere Werte als noch 11 Zeilen obendrüber?
 	"""
 	def idea_get_points_closer_together(self):
 		i = len(self.enemy_pos_noise_x)-1
@@ -171,7 +170,7 @@ class AdjustEnemyPosition:
 	"""
 
 	def idea_average_points(self):
-		number_of_pathpoints = 10
+		number_of_pathpoints = len(self.enemy_pos_x)-1
 		i = 0
 		while i < number_of_pathpoints:
 			self.enemy_pos_refactor_x_idea1.append((self.enemy_pos_noise_x[i] + self.enemy_pos_noise_x[i + 1]) / 2)
@@ -179,10 +178,14 @@ class AdjustEnemyPosition:
 			i = i + 1
 
 	def plot_the_result(self):
-		plt.plot(self.enemy_pos_x, self.enemy_pos_y, 'g')
-		plt.plot(self.enemy_pos_noise_x, self.enemy_pos_noise_y, 'r')
-		plt.plot(self.enemy_pos_refactor_x_idea1, self.enemy_pos_refactor_y_idea1, 'b')
-		plt.plot(self.enemy_pos_refactor_x_idea2, self.enemy_pos_refactor_y_idea2, 'k')
+		figure_1, ax_1 = plt.subplots()
+		figure_2, ax_2 = plt.subplots()
+		figure_3, ax_3 = plt.subplots()
+		figure_4, ax_4 = plt.subplots()
+		ax_1.plot(self.enemy_pos_x, self.enemy_pos_y, 'g')
+		ax_2.plot(self.enemy_pos_noise_x, self.enemy_pos_noise_y, 'r')
+		ax_3.plot(self.enemy_pos_refactor_x_idea1, self.enemy_pos_refactor_y_idea1, 'b')
+		ax_4.plot(self.enemy_pos_refactor_x_idea2, self.enemy_pos_refactor_y_idea2, 'k')
 		plt.show()
 
 	def simulate(self):
@@ -212,7 +215,50 @@ enemy_pos_data = [
 	1.8, 3.4,
 	1.7, 3.7,
 	1.8, 4.0,
-	1.8, 4.3
+	1.8, 4.3,
+	1.5, 4.3,
+	1.2, 4.3,
+	0.8, 4.3,
+	0.4, 4.3,
+	0.05, 4.3,
+	0.05, 3.9,
+	0.05, 3.5,
+	0.05, 3.1,
+	0.05, 2.7,
+	0.05, 3.1,
+	0.05, 3.5,
+	0.05, 3.9,
+	0.05, 4.3,
+	0.05, 4.7,
+	0.05, 4.8,
+	0.05, 4.9,
+	0.15, 5.2,
+	0.3, 5.4,
+	0.6, 5.5,
+	0.6, 5.8,
+	0.6, 6.1,
+	0.6, 6.4,
+	0.6, 6.7,
+	0.6, 7.1,
+	0.7, 7.2,
+	1.05, 7.1,
+	1.3, 7.0,
+	1.6, 7.0,
+	1.9, 7.0,
+	2.3, 7.0,
+	2.7, 7.0,
+	3.0, 7.0,
+	3.3, 7.0,
+	3.5, 6.8,
+	3.7, 6.6,
+	3.9, 6.4,
+	3.7, 6.2,
+	3.5, 6.0,
+	3.2, 5.9,
+	2.9, 5.8,
+	2.6, 5.8,
+	2.3, 5.7,
+	2.0, 5.6,
 ]
 
 test = AdjustEnemyPosition(enemy_pos_data)
