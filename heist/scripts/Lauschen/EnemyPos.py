@@ -6,7 +6,7 @@ import numpy as np
 ROBOTER_SPEED = 0.22
 TIME_INTERVAL = 2
 MAX_TRAVEL_DISTANCE_BETWEEN_INTERVAL = ROBOTER_SPEED * TIME_INTERVAL
-MAX_NOISE = 2
+MAX_NOISE = 1
 
 
 def calculate_distance_between_2_points(x1, x2, y1, y2):
@@ -58,7 +58,6 @@ class AdjustEnemyPosition:
 
     enemy_pos_original = []
     enemy_pos_noise = []
-    enemy_pos_refactor = []
 
     enemy_pos_x = []
     enemy_pos_y = []
@@ -149,8 +148,6 @@ class AdjustEnemyPosition:
         plt.show()
 
     def simulate(self):
-        self.set_noise_on_enemy_pos()
-        self.split_in_x_y()
         self.idea_average_points()
         self.idea_get_points_closer_together()
         self.idea_average_points_after_get_points_closer()
@@ -222,21 +219,42 @@ enemy_pos_data = [
     2.0, 5.6,
 ]
 
+distance_original_noise = 0
+distance_original_idea1 = 0
+distance_original_idea2 = 0
+distance_original_idea3 = 0
 test = AdjustEnemyPosition(enemy_pos_data)
-idee1 = 0
-idee2 = 0
-idee3 = 0
-test.simulate()
-distance_original_noise = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_noise_x[0],
+
+for i in range(0, 10):
+    test.set_noise_on_enemy_pos()
+    test.split_in_x_y()
+    test.simulate()
+    distance_original_noise = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_noise_x[0],
                                                               test.enemy_pos_y[0], test.enemy_pos_noise_y[0])
-distance_original_idea1 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea1[0],
+    distance_original_idea1 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea1[0],
                                                               test.enemy_pos_y[0], test.enemy_pos_refactor_y_idea1[0])
-distance_original_idea2 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea2[0],
+    distance_original_idea2 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea2[0],
                                                               test.enemy_pos_y[0], test.enemy_pos_refactor_y_idea2[0])
-distance_original_idea3 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea3[0],
+    distance_original_idea3 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea3[0],
                                                               test.enemy_pos_y[0], test.enemy_pos_refactor_y_idea3[0])
-print(distance_original_noise)
-print(distance_original_idea1)
-print(distance_original_idea2)
-print(distance_original_idea3)
-test.plot_the_result()
+
+    np.delete(test.enemy_pos_original, [0, len(test.enemy_pos_original) - 1])
+    np.delete(test.enemy_pos_noise, [0, len(test.enemy_pos_noise)-1])
+    np.delete(test.enemy_pos_x, [0, len(test.enemy_pos_x) - 1])
+    np.delete(test.enemy_pos_y, [0, len(test.enemy_pos_y) - 1])
+    np.delete(test.enemy_pos_noise_x, [0, len(test.enemy_pos_noise_x) - 1])
+    np.delete(test.enemy_pos_noise_y, [0, len(test.enemy_pos_noise_y) - 1])
+    np.delete(test.enemy_pos_refactor_x_idea1, [0, len(test.enemy_pos_refactor_x_idea1) - 1])
+    np.delete(test.enemy_pos_refactor_y_idea1, [0, len(test.enemy_pos_refactor_y_idea1) - 1])
+    np.delete(test.enemy_pos_refactor_x_idea2, [0, len(test.enemy_pos_refactor_x_idea2) - 1])
+    np.delete(test.enemy_pos_refactor_y_idea2, [0, len(test.enemy_pos_refactor_y_idea2) - 1])
+    np.delete(test.enemy_pos_refactor_x_idea3, [0, len(test.enemy_pos_refactor_x_idea3) - 1])
+    np.delete(test.enemy_pos_refactor_y_idea3, [0, len(test.enemy_pos_refactor_y_idea3) - 1])
+    print(len(test.enemy_pos_x))
+
+print(distance_original_noise/10)
+print(distance_original_idea1/10)
+print(distance_original_idea2/10)
+print(distance_original_idea3/10)
+
+
