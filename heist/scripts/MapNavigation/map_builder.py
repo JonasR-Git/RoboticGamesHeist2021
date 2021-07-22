@@ -1,8 +1,10 @@
+import sys
+sys.path.append('..')
 import numpy as np
 import math
 import rospy
 from sensor_msgs.msg import LaserScan
-from ..helpers import (MAP_TILES_PER_AXIS, get_direction_from_orientation, ROBOTER_SIZE, GRID_BLOCK_SIZE,
+from helpers import (MAP_TILES_PER_AXIS, get_direction_from_orientation, ROBOTER_SIZE, GRID_BLOCK_SIZE,
                        local_to_global_orientation, ROBOTER_POSITION_X, ROBOTER_POSITION_Y, HALF_ROBOTER_SQUARED_SIZE,
                        is_tile_in_bounds)
 
@@ -12,7 +14,6 @@ class MapBuilder:
 
     def __init__(self):
         self.map = np.ones((MAP_TILES_PER_AXIS, MAP_TILES_PER_AXIS), dtype=bool)
-
         rospy.Subscriber("scan", LaserScan, self.scan_callback)
 
     def add_point_to_map(self, obstacle_distance, obstacle_local_orientation):
@@ -45,3 +46,11 @@ class MapBuilder:
             if not math.isfinite(r):
                 self.add_point_to_map(r, current_radians)
             current_radians += radians_increment
+
+
+if __name__ == '__main__':
+    rospy.init_node('map_builder')
+    ROBOTER_POSITION_X += 5
+    ROBOTER_POSITION_Y += 5
+    x = MapBuilder()
+    rospy.spin()

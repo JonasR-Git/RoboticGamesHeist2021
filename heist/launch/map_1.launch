@@ -66,6 +66,7 @@
 
   <node name="map_1_setup" type="map_1_setup.py" pkg="heist"  />
   <node name="heist_tracker" type="heist_tracker.py" pkg="heist"  /> 
-  <node name="heist_client" type="heist_client.py" pkg="heist"  />  
+  <node name="heist_client" type="heist_client.py" pkg="heist"  />
+  <node name="map_builder" type="map_builder.py" pkg="heist" />
   
 </launch>
