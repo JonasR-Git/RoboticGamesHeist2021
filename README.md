@@ -11,6 +11,9 @@
 - rostopic info [topic name]
     - Shows the current list of subscribers and publishers to the given topic
     - *Example: rostopic info /guard/scan*
+  
+- rqt_graph
+  - Displays all the available running nodes
 
 - chmod +x [Python file]
     - Grants executable permissions to the specified file
