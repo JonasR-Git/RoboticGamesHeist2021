@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 import rospy
 from std_msgs.msg import Int32
 import rogata_library as rgt
