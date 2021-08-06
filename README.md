@@ -26,3 +26,8 @@
   
 - Every Python script requires a specific first line
     - *#!/usr/bin/env python3.8*
+
+-Idea for Navigation:
+    -1: https://navigation.ros.org/tutorials/docs/navigation2_with_slam.html
+    -2: https://github.com/ros-planning/navigation
+    -3: http://wiki.ros.org/Robots/evarobot/noetic/Autonomous%20Navigation%20of%20a%20Known%20Map%20with%20Evarobot
