@@ -17,6 +17,10 @@
     - Shows the current list of subscribers and publishers to the given topic
     - *Example: rostopic info /guard/scan*
     
+- rosmsg show [message name]
+    - Shows the content of a message and how it is defined
+    - *Example: rosmsg show geometry_msgs/Pose*
+    
 - rostopic echo [topic name]
     - Shows live the change of the topic 
     - *Example: rostopic echo /guard/scan*
@@ -27,10 +31,6 @@
 - rosnode info [node name]
     - Shows the current Subscriptions and Publications of a spezific node
     - *Example: rosnode info /guard*
-    
-- rosmsg show [message name]
-    - Shows the content of a message and how it is defined
-    - *Example: rosmsg show geometry_msgs/Pose*
        
 - rqt_graph
   - Displays all the available running nodes
@@ -68,7 +68,31 @@ Write a Subscriber:
 4. Start listening for the topic messages
 
 
-### Pulisher and Receiver and Ros Node
+### Pulisher and Receiver and what is needed for them
+
+- Message Structure:
+   - package_name/message_type
+   	- type1 filed1
+   	- type2 filed2
+   	
+   - *Example: geometry_msgs/Twist*
+        - *linear*
+        	- *x float64*
+        	- *y float64*
+        	- *z float64*
+        - *angular*
+        	- *x float64*
+        	- *y float64*
+        	- *z float64*
+        	
+- Create a new Message Type:
+  - create a folder named msg
+  - create a message, for example: *IotSensor.msg*
+  - define the msg, for example: int32 id, string name, float32 temperature, floar32 humidity
+  - add message_generation to find_package in CMakeLists.txt
+  - add the msg file to the add_message_files in CMakeLists
+  - add message_runtime to the Catkin_depends in catkin_package in CMakeLIsts.txt
+  - add <build_depend>message_generation</build_depend> and <exec_depend>message_runtime</exec_depend> in the package.xml
 
 - Create a Ros Node:
    - rospy.init_node('[Node Name]', anonymous=True)
