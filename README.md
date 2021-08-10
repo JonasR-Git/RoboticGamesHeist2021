@@ -5,13 +5,33 @@
     - Starts Gazebo with Turtlebot3 and the map environment
     - *Example: roslaunch heist map_1.launch*
 
+- rostopic pub [topic name] [message name]
+    - publishes a message via Terminal
+    - *Example: rostopic pub -r 5 /guard/cmd_vel geometry_msgs/Twist '{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x:0.0, y: 0.0, z: 0.0}}'* 
+    	- means that the robot should move 5 times, means 5 seconds with the linear speed x = 0.1
+
 - rostopic list
     - Displays all the currently published topics
-
+    
 - rostopic info [topic name]
     - Shows the current list of subscribers and publishers to the given topic
     - *Example: rostopic info /guard/scan*
+    
+- rostopic echo [topic name]
+    - Shows live the change of the topic 
+    - *Example: rostopic echo /guard/scan*
   
+- rosnode list
+    - Display the list of nodes that are currently running in the System
+    
+- rosnode info [node name]
+    - Shows the current Subscriptions and Publications of a spezific node
+    - *Example: rosnode info /guard*
+    
+- rosmsg show [message name]
+    - Shows the content of a message and how it is defined
+    - *Example: rosmsg show geometry_msgs/Pose*
+       
 - rqt_graph
   - Displays all the available running nodes
 
@@ -27,7 +47,79 @@
 - Every Python script requires a specific first line
     - *#!/usr/bin/env python3.8*
 
--Idea for Navigation:
-    -1: https://navigation.ros.org/tutorials/docs/navigation2_with_slam.html
-    -2: https://github.com/ros-planning/navigation
-    -3: http://wiki.ros.org/Robots/evarobot/noetic/Autonomous%20Navigation%20of%20a%20Known%20Map%20with%20Evarobot
+
+
+
+
+
+### Guidelines
+
+Write a Publisher: 
+1. Determine a name for the topic to publish
+2. Determine the type of the messages that the topic will publish
+3. Determine the frequency of topic publication. How many Messages per second?
+4. Create a publisher object with parameters chosen 
+5. Keep publishing the topic message at the selected frequency
+
+Write a Subscriber:
+1. Identify the name for the topic to listen to
+2. Identify the type of the messages to be received
+3. Define a callback function that will be automatically executed when a new message is received on the topic
+4. Start listening for the topic messages
+
+
+### Pulisher and Receiver and Ros Node
+
+- Create a Ros Node:
+   - rospy.init_node('[Node Name]', anonymous=True)
+       - anonymous=True makes sure that every Node is unique
+
+- Create a Publisher Object:
+   - pub = rospy.Publisher('[Topic Name]', [Topic Type], queue_size=[Buffer size])
+       - queue_size= 10 for example saves up to 10 messages, before deleting the oldest one for saving a new one
+    
+- Spezify the publish rate:
+   - rate = rospy.Rate([int])
+
+- Example: 
+
+	def talker():
+
+		pub = rospy.Publisher('sender', String, queue_size=5)
+		
+		rospy.init_node('talker', anonymous=True)
+	
+		rate = rospy.Rate(1) 
+	
+		while not rospy.is_shutdown():
+	
+			hello_str = "hello World"
+		
+			rospy.publish(hello_str)
+			
+			rate.sleep()
+			
+- Create a Subscriber Object:
+   - rospy.Subscriber("[Topic Name]", [Topic Type], [callback_function])
+   
+- Create a Callback Function: 
+   - def listener_callback(message): print("I heard %s", message.data)
+   
+- Start the Listening:
+   - rospy.spin()
+   
+- Example:
+
+	def listener_callback(message):
+	
+		rospy.loginfo(rospy.get_caller_id() + " I heard %s", message.data)
+		
+	def listener():
+	
+		rospy.init_node('listener', anonymous=True)
+		
+		rospy.Subscriber("sender", String, listener_callback)
+		
+		rospy.spin()
+   
+	
