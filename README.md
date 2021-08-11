@@ -146,7 +146,7 @@ Write a Subscriber:
 		
         rospy.spin()
 
-### How to crate a Map (.yaml)
+### How to create a Map (.yaml und .pgm)
 
 - Launch the right map
   - *Example: roslaunch heist map_2_test.launch*
