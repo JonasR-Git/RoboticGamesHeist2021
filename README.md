@@ -72,18 +72,18 @@ Write a Subscriber:
 
 - Message Structure:
    - package_name/message_type
-   	- type1 filed1
-   	- type2 filed2
+       - type1 filed1
+       - type2 filed2
    	
    - *Example: geometry_msgs/Twist*
         - *linear*
-        	- *x float64*
-        	- *y float64*
-        	- *z float64*
+            - *x float64*
+            - *y float64*
+            - *z float64*
         - *angular*
-        	- *x float64*
-        	- *y float64*
-        	- *z float64*
+            - *x float64*
+            - *y float64*
+            - *z float64*
         	
 - Create a new Message Type:
   - create a folder named msg
@@ -107,21 +107,21 @@ Write a Subscriber:
 
 - Example: 
 
-	def talker():
+    def talker():
 
-		pub = rospy.Publisher('sender', String, queue_size=5)
+        pub = rospy.Publisher('sender', String, queue_size=5)
 		
-		rospy.init_node('talker', anonymous=True)
+        rospy.init_node('talker', anonymous=True)
 	
-		rate = rospy.Rate(1) 
+        rate = rospy.Rate(1) 
 	
-		while not rospy.is_shutdown():
+        while not rospy.is_shutdown():
 	
-			hello_str = "hello World"
+            hello_str = "hello World"
 		
-			rospy.publish(hello_str)
+            rospy.publish(hello_str)
 			
-			rate.sleep()
+            rate.sleep()
 			
 - Create a Subscriber Object:
    - rospy.Subscriber("[Topic Name]", [Topic Type], [callback_function])
@@ -134,16 +134,24 @@ Write a Subscriber:
    
 - Example:
 
-	def listener_callback(message):
+    def listener_callback(message):
 	
-		rospy.loginfo(rospy.get_caller_id() + " I heard %s", message.data)
+        rospy.loginfo(rospy.get_caller_id() + " I heard %s", message.data)
 		
-	def listener():
+    def listener():
 	
-		rospy.init_node('listener', anonymous=True)
+        rospy.init_node('listener', anonymous=True)
 		
-		rospy.Subscriber("sender", String, listener_callback)
+        rospy.Subscriber("sender", String, listener_callback)
 		
-		rospy.spin()
-   
-	
+        rospy.spin()
+
+### How to crate a Map (.yaml)
+
+- Launch the right map
+  - *Example: roslaunch heist map_2_test.launch*
+- Start gmapping for example
+  - *Example: roslaunch turtlebot3_slam turtlebot3_slam.launch slam_methods:=gmapping*
+- Navigate the Robot manuell or automatic
+  - *Example: roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch* (keyboard)
+  - *Example: roslaunch turtlebot3_gazebo turtlebot3_simulation.launch* (automatic)
