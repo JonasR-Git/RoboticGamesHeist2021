@@ -1,10 +1,16 @@
 import numpy as np
 import math
+from time import perf_counter
+
+MAX_SPEED = 0.4
 
 
 class StartAreasModel:
 
     def __init__(self, start_position):
+        rospy.Subscriber("/map", LaserScan, self.map_callback())  # todo:: adjust message type for occupancy grid data
+        rospy.Subscriber("/lauschen", LaserScan, self.map_callback())
+        self.pub = rospy.Publisher('/target-position', list, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
         self.occupancy_grid = np.array((0, 0))
         self.occupancy_grid_tile_size = 0.05
@@ -31,10 +37,28 @@ class StartAreasModel:
         self.most_likely_start_area_number = 0
 
         self.probability_update_iteration = 1
-
-        self.search_separated_possible_start_areas(start_position[0], start_position[1])
-        self.calculate_start_area_probabilities()
+        self.start_time = perf_counter()
         self.global_open_nodes = []
+        self.enemy_start = []
+        self.initial = True
+
+    def map_callback(self, message):
+        if not self.occupancy_grid:
+            self.occupancy_grid = message
+
+    def listener_callback(self, message):
+        self.enemy_start.append(message) # message is a tuple?
+        if self.occupancy_grid and self.initial:
+            self.initial = False
+            self.search_separated_possible_start_areas(self.enemy_start[0][0], self.enemy_start[0][1])
+            self.calculate_start_area_probabilities()
+        elif self.occupancy_grid:
+            self.probability_of_point_from_start_block_after_seconds(message,
+                                                                     (perf_counter() - self.start_time) * MAX_SPEED)
+        if self.occupancy_grid:
+            # self.pub.publish(self.results)
+            # results -> [('x', 'y', 'probability'), ('x2', 'y2', 'probability2'), ...]
+            self.pub.publish(('x', 'y', 'probability'))
 
     def is_tile_in_bounds(self, coord):
         return 0 <= coord[0] < self.occupancy_grid_size and 0 <= coord[1] < self.occupancy_grid_size
@@ -102,7 +126,7 @@ class StartAreasModel:
         for idx, probability in enumerate(self.start_area_probabilities):
             self.start_area_probabilities[idx] = probability / new_total_probabilities
 
-    def probability_of_point_from_start_block_after_seconds(self, position, block_index, max_distance_traveled_so_far):
+    def probability_of_point_from_start_block_after_seconds(self, position, max_distance_traveled_so_far):
         total_points_reachable = 0
         probability_points_for_block = np.full(self.disconnected_possible_start_areas, 0, dtype=int)
         start_index = self.position_to_index(position[0], position[1])
@@ -209,3 +233,8 @@ class StartAreasModel:
                             self.start_area_distances[i][p] = distance
 
             self.start_area_distances.append(distances_to_block)
+
+
+if __name__ == '__main__':
+    rospy.init_node('start_area')
+    rospy.spin()
