@@ -13,7 +13,7 @@
     <arg name="debug" value="false"/>
   </include>
   
-  <include file="$(find heist)/launch/turtlebot3_navigation.launch"/>
+  <include file="$(find heist_guard)/launch/turtlebot3_navigation.launch"/>
     <arg name="initial_pose_x" value="$(arg x_pos)"/>
     <arg name="initial_pose_x" value="$(arg y_pos)"/>
     <arg name="initial_pose_x" value="$(arg z_pos)"/>

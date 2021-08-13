@@ -9,12 +9,19 @@
   <arg name="second_tb3" default="evader"/>
 
   <!-- guard start position -->
-  <arg name="first_tb3_x_pos" default=" 0.0"/>
-  <arg name="first_tb3_y_pos" default=" 2.0"/>
+  <arg name="first_tb3_x_pos" default=" 3.25"/>
+  <arg name="first_tb3_y_pos" default=" 3.0"/>
   <arg name="first_tb3_z_pos" default=" 0.0"/>
   <arg name="first_tb3_yaw"   default=" 0.0"/>
   <param name="guard_start_pos_x" value="$(arg first_tb3_x_pos)"/>
   <param name="guard_start_pos_y" value="$(arg first_tb3_y_pos)"/>
+  
+  <include file="$(find heist_guard)/launch/map_2_guard.launch">
+    <arg name="x_pos" value="$(arg first_tb3_x_pos)"/>
+    <arg name="y_pos" value="$(arg first_tb3_y_pos)"/>
+    <arg name="z_pos" value="$(arg first_tb3_z_pos)"/>
+  </include>
+ 
 
   <!-- evader start position -->
   <arg name="second_tb3_x_pos" default=" 4.5"/>
@@ -34,10 +41,10 @@
     <arg name="debug" value="false"/>
   </include>  
 
-
   <!-- guard -->
-  <group ns = "$(arg first_tb3)">
+  <group ns = "$(arg first_tb3)">    
     <param name="robot_description" command="$(find xacro)/xacro $(find heist)/urdf/turtlebot3_$(arg model)_red.urdf.xacro" />
+    
     <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
       <param name="publish_frequency" type="double" value="50.0" />
       <param name="tf_prefix" value="$(arg first_tb3)" />
@@ -47,6 +54,7 @@
     
     <node name="guard_perception" type="perception.py" pkg="heist" args="/evader/odom /guard/perception_of_evader 1.0 1.0" /> 
   </group>
+
 
 
   <!-- evader -->
