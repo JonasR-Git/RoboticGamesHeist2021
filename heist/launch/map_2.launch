@@ -16,7 +16,7 @@
   <param name="guard_start_pos_x" value="$(arg first_tb3_x_pos)"/>
   <param name="guard_start_pos_y" value="$(arg first_tb3_y_pos)"/>
   
-  <include file="$(find heist_guard)/launch/map_2_integration.launch">
+  <include file="$(find heist_guard)/launch/map_2_guard.launch">
     <arg name="x_pos" value="$(arg first_tb3_x_pos)"/>
     <arg name="y_pos" value="$(arg first_tb3_y_pos)"/>
     <arg name="z_pos" value="$(arg first_tb3_z_pos)"/>
