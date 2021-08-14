@@ -8,8 +8,8 @@ MAX_SPEED = 0.4
 class StartAreasModel:
 
     def __init__(self, start_position):
-        rospy.Subscriber("/map", LaserScan, self.map_callback())  # todo:: adjust message type for occupancy grid data
-        rospy.Subscriber("/lauschen", LaserScan, self.map_callback())
+        rospy.Subscriber("/guard/map", LaserScan, self.map_callback())  # todo:: adjust message type for occupancy grid data
+        rospy.Subscriber("/guard/guard_perception", LaserScan, self.map_callback())
         self.pub = rospy.Publisher('/target-position', list, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
         self.occupancy_grid = np.array((0, 0))
@@ -59,7 +59,8 @@ class StartAreasModel:
        
             # self.pub.publish(self.results)
             # results -> [('x', 'y', 'probability'), ('x2', 'y2', 'probability2'), ...]
-            halfway_intercept_position = self.get_next_guard_position_when_guarding_area(self.most_likely_start_area_number)
+            halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(self.most_likely_start_area_number)
+            halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
             self.pub.publish([(halfway_intercept_position[0], halfway_intercept_position[1], self.start_area_probabilities)])
 
     def is_tile_in_bounds(self, coord):
@@ -73,6 +74,9 @@ class StartAreasModel:
 
     def position_to_index(self, coord):
         return position_to_index(coord[0],coord[1])
+
+    def index_to_position(self, coord):
+        return (coord[0] * self.occupancy_grid_tile_size, coord[1] * self.occupancy_grid_tile_size)
 
     def is_coord_considered_free(self, coord):
         return coord >= 0 and self.occupancy_grid[coord] < self.is_reachable_threshold
