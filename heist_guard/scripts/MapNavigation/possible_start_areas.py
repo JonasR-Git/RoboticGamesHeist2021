@@ -1,121 +1,277 @@
-from casadi import *
-import heapq
+#!/usr/bin/env python
 import numpy as np
 import math
+import rospy
+from nav_msgs.msg import OccupancyGrid, Odometry
+from time import perf_counter
+
+MAX_SPEED = 0.4
 
 
-class points:
+class StartAreasModel:
 
     def __init__(self):
-        self.pointSet = []
-        self.seperatedPossibleStartAreas = 0
-        self.occupancyGrid = []
-        self.node_block_id_lookup = []
-        self.start_area_distances = []
-        self.start_block_nodes = []
-        self.occupancyGridTileSize = 0.05
-        self.occupancyGridSize = 200
-        self.maxNoiseTileError = 1 / self.occupancyGridTileSize
-        self.start_map_size = maxNoiseTileError * 2 + 1
+        rospy.Subscriber("/map",OccupancyGrid, self.map_callback)  # todo:: adjust message type for occupancy grid data
+        rospy.Subscriber("/guard/guard_perception", Odometry, self.map_callback)
+        self.pub = rospy.Publisher('/target_position', Odometry, queue_size=10)
+        # occupancy grid stuff and config of occupancy grid
+        self.occupancy_grid = np.array((0, 0))
+        self.occupancy_grid_tile_size = 0.05
+        self.occupancy_grid_size = 200
+        self.max_error_distance = 1
+        self.max_noise_tile_error = math.ceil(self.max_error_distance / self.occupancy_grid_tile_size)
+        self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
+        self.start_map_size = self.max_noise_tile_error * 2 + 1
+        self.is_reachable_threshold = 0.3
         self.sqrtOf2 = math.sqrt(2)
-        self.startX = 0
-        self.startY = 0
-        self.is_driveable_threshhold = 1
+
+        # if a start area has the likelihood of under a half percent it is rejected
+        self.threshold_to_reject_start_area = 0.005
+
+        self.total_reachable_tiles_in_start_area = 0
+        self.disconnected_possible_start_areas = 0
+        self.node_block_id = np.array((0, 0))
+        # value at index i is number of tiles in start area i
+        self.nodes_in_block = []
+        # list of a 2d array
+        # each entry i stores a grid containing the distance from every node to the starting area i
+        self.start_area_distances = []
+        self.start_area_probabilities = []
+        self.most_likely_start_area_number = 0
+
+        self.probability_update_iteration = 1
+        self.start_time = perf_counter()
+        self.global_open_nodes = []
+        self.enemy_approximate_positions = []
+        self.initial = True
+
+    def map_callback(self, message):
+        if len(self.occupancy_grid)>0:
+            self.occupancy_grid = message
+
+    def listener_callback(self, message):
+        self.enemy_approximate_positions.append(message) # message is a tuple?
+        if len(self.occupancy_grid)>0:
+            if self.initial:
+                self.initial = False
+                self.search_separated_possible_start_areas(self.enemy_approximate_positions[0][0], self.enemy_approximate_positions[0][1])
+                self.calculate_start_area_probabilities()
+            else:
+                self.probability_of_point_from_start_block_after_seconds(message,
+                                                                     (perf_counter() - self.start_time) * MAX_SPEED)
+       
+            # self.pub.publish(self.results)
+            # results -> [('x', 'y', 'probability'), ('x2', 'y2', 'probability2'), ...]
+            halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(self.most_likely_start_area_number)
+            halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
+            self.pub.publish([(halfway_intercept_position[0], halfway_intercept_position[1], self.start_area_probabilities)])
 
     def is_tile_in_bounds(self, coord):
-        return coord[0] >= 0 and coord[1] >= 0 and coord[0] < self.mapGridSize and coord[1] < self.mapGridSize
+        return 0 <= coord[0] < self.occupancy_grid_size and 0 <= coord[1] < self.occupancy_grid_size
+
+    def is_start_area_active(self, block_id):
+        return self.start_area_probabilities[block_id] < self.threshold_to_reject_start_area
 
     def position_to_index(self, x, y):
-        return (x / self.occupancyGridTileSize, y / self.occupancyGridTileSize)
+        return int(round(x / self.occupancy_grid_tile_size)), int(round(y / self.occupancy_grid_tile_size))
 
-    def get_start_map_part(self, startX, startY):
-        self.startX = startX
-        self.startY = startY
-        startMap = np.full((self.start_map_size, self.start_map_size), -1, dtype=int)
-        start_index = self.position_to_index(startX, startY)
-        start_map_index = (maxNoiseTileError, maxNoiseTileError)
-        for x in range(-maxNoiseTileError, maxNoiseTileError + 1, 1):
-            for y in range(-maxNoiseTileError, maxNoiseTileError + 1, 1):
-                if ((x * x + y * y) / GRID_BLOCK_SIZE < maxNoiseTileError
-                        and self.is_tile_in_bounds((start_index + x, start_index + y))):
-                    startMap[start_map_index[0] + x, start_map_index[1] + y]=occupancyGrid[start_index[0] + x, start_index[1] + y]
+    def position_to_index(self, coord):
+        return self.position_to_index(coord[0],coord[1])
 
-        return startMap
+    def index_to_position(self, coord):
+        return (coord[0] * self.occupancy_grid_tile_size, coord[1] * self.occupancy_grid_tile_size)
 
-    def count_seperated_possible_start_areas(self, startX, startY):
-        startMap = self.get_start_map_part(startX, startY)
-        start_index = self.position_to_index(startX, startY)
-        self.node_block_id = np.full((self.occupancyGridSize, self.occupancyGridSize), -1, dtype = int)
-        blockCount = 0
-        for x in range(0, self.start_map_size, 1):
-            for y in range(0, self.start_map_size, 1):
-                if(self.node_block_id[start_index[0] + x, start_index[1] + y] == -1 and startMap[x,y] > 0):
-                    if(self.bfs(startX, startY, blockCount, startMap, nodeBlockIds)):
-                        blockCount += 1
+    def is_coord_considered_free(self, coord):
+        return coord >= 0 and self.occupancy_grid[coord] < self.is_reachable_threshold
 
-        self.seperatedPossibleStartAreas = blockCount
+    def is_coord_considered_free_in_map(self, coord, map_view):
+        return coord >= 0 and map_view[coord] < self.is_reachable_threshold
 
+    @staticmethod
+    def sqr_magnitude(coord):
+        return coord[0] * coord[0] + coord[1] * coord[1]
 
-    def build_start_area_distances(self):
-        open_nodes = []
-        for i in ranges(0,self.seperatedPossibleStartAreas):
-            distances_to_block = np.full((self.occupancyGridSize, self.occupancyGridSize), -1, dtype = float)
-            for n in self.global_open_nodes:
-                if(self.node_block_id_lookup[n] == i):
-                    distances_to_block[n] = 0
-                    open_nodes.push(n)
-
-            while(not open_nodes.empty()):
-                top = open_nodes.pop()
-                for (p, dis) in self.get_adjacent_fields(top):
-                    if(self.is_tile_in_bounds(p) and occupancyGrid[p] > self.is_driveable_threshhold):
-                        if(self.distances_to_block[p] == -1):
-                             open_nodes.push(p)
-
-                        distance = self.distances_to_block[top] + dis
-                        if(distance < self.distances_to_block[p]):
-                            self.distances_to_block[p] = distance
-
-            self.start_area_distances.append(distances_to_block)
-
-
-
-    def get_simple_adjacent_fields(self, coord):
+    @staticmethod
+    def get_simple_adjacent_fields(coord):
         return [
-            (coord[0] - 1, coord[1] ),
-            (coord[0], coord[1] - 1 ),
-            (coord[0], coord[1] + 1 ),
-            (coord[0] + 1, coord[1] ),
-            ]
+            (coord[0] - 1, coord[1]),
+            (coord[0], coord[1] - 1),
+            (coord[0], coord[1] + 1),
+            (coord[0] + 1, coord[1]),
+        ]
 
     def get_adjacent_fields(self, coord):
         return [
             ((coord[0] - 1, coord[1] - 1), self.sqrtOf2),
-            ((coord[0] - 1, coord[1] ), 1),
+            ((coord[0] - 1, coord[1]), 1),
             ((coord[0] - 1, coord[1] + 1), self.sqrtOf2),
-            ((coord[0], coord[1] - 1 ), 1),
-            ((coord[0], coord[1] + 1 ), 1),
+            ((coord[0], coord[1] - 1), 1),
+            ((coord[0], coord[1] + 1), 1),
             ((coord[0] + 1, coord[1] - 1), self.sqrtOf2),
-            ((coord[0] + 1, coord[1] ), 1),
+            ((coord[0] + 1, coord[1]), 1),
             ((coord[0] + 1, coord[1] + 1), self.sqrtOf2)
-            ]
+        ]
 
-    #starts a bfs from a start point and marks all valid fields with the given block id.
-    #global_offset is the offset to add to the current coordinate to get the global coordinate
-    #returns true if at least one field was marked
-    def bfs(self, startX, startY, blockId, map, global_offset):
-        open_nodes = [(startX, startY)]
-        marked_at_least_one = False
-        while(not open_nodes.empty()):
+    def calculate_start_area_probabilities(self):
+        self.start_area_probabilities = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
+        best_so_far = 0
+        i = 0
+        for n in self.nodes_in_block:
+            self.start_area_probabilities[i] = len(n) / self.total_reachable_tiles_in_start_area
+            if self.start_area_probabilities[i] > best_so_far :
+                best_so_far = self.start_area_probabilities[i]
+                self.most_likely_start_area_number = i
+            i += 1
+
+    def update_area_probabilities_based_on_mean(self, new_area_probabilities):
+        i = 0
+        best_so_far = 0
+        for probability in new_area_probabilities:
+            diff = probability - self.start_area_probabilities[i]
+            self.start_area_probabilities[i] = self.start_area_probabilities[
+                                                   i] + diff / self.probability_update_iteration
+            if self.start_area_probabilities[i] > best_so_far :
+                best_so_far = self.start_area_probabilities[i]
+                self.most_likely_start_area_number = i
+            i += 1
+
+        self.probability_update_iteration += 1
+
+    def update_area_probabilities_multiply_normalized(self, new_area_probabilities):
+        new_total_probabilities = 0
+        best_so_far = 0
+        for idx, (probability, start_prob) in enumerate(zip(new_area_probabilities, self.start_area_probabilities)):
+            self.start_area_probabilities[idx] = probability * start_prob
+            new_total_probabilities += start_prob
+
+        for idx, probability in enumerate(self.start_area_probabilities):
+            self.start_area_probabilities[idx] = probability / new_total_probabilities
+            if self.start_area_probabilities[idx] > best_so_far :
+                best_so_far = self.start_area_probabilities[idx]
+                self.most_likely_start_area_number = idx
+
+    def get_next_guard_position_when_guarding_area(self, start_area_index):
+        adversary_coordinate = self.position_to_index(self.enemy_approximate_positions.top())
+        adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
+        return self.find_halway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance, adversary_coordinate)
+
+    def find_halway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
+        p = coord
+        while(self.start_area_distances[start_area_index][p] > distance / 2):
+            for (neighbour,_) in self.get_adjacent_fields(p):
+                if(self.start_area_distances[start_area_index][neighbour] < p):
+                    p = self.start_area_distances[start_area_index][neighbour]
+        return p
+
+    def probability_of_point_from_start_block_after_seconds(self, position, max_distance_traveled_so_far):
+        total_points_reachable = 0
+        probability_points_for_block = np.full(self.disconnected_possible_start_areas, 0, dtype=int)
+        start_index = self.position_to_index(position[0], position[1])
+        # check all tiles around the heard position where the adversary could possibly be
+        for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
+            for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
+                coord = (start_index[0] + x, start_index[1] + y)
+                if ((x * x + y * y) / self.occupancy_grid_tile_size < self.sqr_max_noise_tile_error
+                        and self.is_tile_in_bounds(coord)
+                        and self.is_coord_considered_free(coord)):
+                    blocks_that_reach_tile = []
+
+                    for block_id in range(0, self.disconnected_possible_start_areas):
+                        if (self.is_start_area_active(block_id) and
+                                self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
+                            blocks_that_reach_tile.append(block_id)
+
+                    number_blocks_that_reach_tile = len(blocks_that_reach_tile)
+                    total_points_reachable += number_blocks_that_reach_tile
+
+                    for block_id in blocks_that_reach_tile:
+                        if (self.is_start_area_active(block_id) and
+                                self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
+                            probability_points_for_block[
+                                block_id] += self.disconnected_possible_start_areas / number_blocks_that_reach_tile
+
+        total_probability_points = total_points_reachable * self.disconnected_possible_start_areas
+        for idx, probability in enumerate(probability_points_for_block):
+            probability_points_for_block[idx] = probability / total_probability_points
+
+        self.update_area_probabilities_based_on_mean(probability_points_for_block)
+
+    def build_start_map(self, start_x, start_y):
+        start_map = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=int)
+        start_index = self.position_to_index(start_x, start_y)
+        start_map_index = (self.max_noise_tile_error, self.max_noise_tile_error)
+        for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
+            for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
+                coord = (start_index[0] + x, start_index[1] + y)
+                if ((x * x + y * y) / self.occupancy_grid_tile_size < self.sqr_max_noise_tile_error
+                        and self.is_tile_in_bounds(coord)):
+                    start_map[coord] = self.occupancy_grid[coord]
+
+        return start_map
+
+    def search_separated_possible_start_areas(self, start_x, start_y):
+        start_map = self.build_start_map(start_x, start_y)
+        start_index = self.position_to_index(start_x, start_y)
+        self.node_block_id = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=int)
+        block_count = 0
+        for x in range(0, self.start_map_size, 1):
+            for y in range(0, self.start_map_size, 1):
+                coord = start_index[0] + x, start_index[1] + y
+                if (self.node_block_id[coord] == -1
+                        and self.is_coord_considered_free_in_map(coord, start_map)
+                        and self.is_tile_in_bounds(coord)):
+                    if self.bfs(start_x, start_y, block_count, start_map):
+                        block_count += 1
+
+        self.disconnected_possible_start_areas = block_count
+
+    # starts a bfs from a start point and marks all valid fields with the given block id.
+    # global_offset is the offset to add to the current coordinate to get the global coordinate
+    # returns true if at least one field was marked
+    def bfs(self, start_x, start_y, block_id, graph):
+        open_nodes = [(start_x, start_y)]
+        marked_nodes_count = 0
+        while open_nodes:
             top = open_nodes.pop()
-            globalTop = (top[0] + global_offset[0], top[1] + global_offset[1])
-            #open_nodes.pop()
-            #check if tile is in bounds,
-            if(self.is_tile_in_bounds(globalTop) and map[top] > self.is_driveable_threshhold and self.node_block_id[globalTop] == -1)):
-                marked_at_least_one = True
-                self.node_block_id[globalTop] = nodeBlockId
-                self.global_open_nodes.push(globalTop)
-                for(neighbor in self.get_adjacent_fields(top)):
-                    open_nodes.push(neighbour)
+            marked_nodes_count += 1
+            self.node_block_id[top] = block_id
+            self.global_open_nodes.append(top)
+            for neighbour in self.get_adjacent_fields(top):
+                if (self.node_block_id[neighbour] == -1
+                        and self.is_coord_considered_free_in_map(neighbour, graph)
+                        and self.is_tile_in_bounds(neighbour)):
+                    open_nodes.append(neighbour)
+                    # prevent the position being added to the open nodes more then once
+                    self.node_block_id[neighbour] = -2
+        if marked_nodes_count > 0:
+            self.nodes_in_block.append(marked_nodes_count)
+            self.total_reachable_tiles_in_start_area += marked_nodes_count
+        return marked_nodes_count > 0
 
-        return marked_at_least_one
+    def build_start_area_distances(self):
+        open_nodes = []
+        for i in range(0, self.disconnected_possible_start_areas):
+            distances_to_block = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=float)
+            for n in self.global_open_nodes:
+                if self.node_block_id[n] == i:
+                    distances_to_block[n] = 0
+                    open_nodes.append(n)
+
+            while open_nodes:
+                top = open_nodes.pop()
+                for (p, dis) in self.get_adjacent_fields(top):
+                    if self.is_tile_in_bounds(p) and self.is_coord_considered_free(p):
+                        if self.start_area_distances[i][p] == -1:
+                            open_nodes.append(p)
+
+                        distance = self.start_area_distances[i][top] + dis
+                        if distance < self.start_area_distances[i][p]:
+                            self.start_area_distances[i][p] = distance
+
+            self.start_area_distances.append(distances_to_block)
+
+
+if __name__ == '__main__':
+    rospy.init_node('start_area')
+    StartAreasModel()
+    rospy.spin()
