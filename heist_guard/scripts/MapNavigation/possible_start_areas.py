@@ -83,7 +83,7 @@ class StartAreasModel:
         return int(round(x / self.occupancy_grid_tile_size)), int(round(y / self.occupancy_grid_tile_size))
 
     def get_2d_position_from_odom(self, odom):
-        return (odom.pose.pose.positon.x, odom.pose.pose.position.y)
+        return (odom.pose.pose.positon.x + int(self.occupancy_grid_size / 2), odom.pose.pose.position.y + int(self.occupancy_grid_size / 2))
 
     def coord_2_d_to_1_d(self, coord):
         return coord[0] * self.occupancy_grid_size + coord[1]
