@@ -40,15 +40,18 @@ class StartAreasModel:
         self.start_time = perf_counter()
         self.global_open_nodes = []
         self.enemy_approximate_positions = []
+        
+        self.has_map = False
         self.initial = True
 
     def map_callback(self, message):
-        if not self.occupancy_grid:
+        if not self.has_map:
+            self.has_map = True
             self.occupancy_grid = message
 
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message) # message is a tuple?
-        if self.occupancy_grid:
+        if self.has_map:
             if self.initial:
                 self.initial = False
                 self.search_separated_possible_start_areas(self.enemy_approximate_positions[0][0], self.enemy_approximate_positions[0][1])
