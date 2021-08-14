@@ -39,7 +39,7 @@ class StartAreasModel:
         self.probability_update_iteration = 1
         self.start_time = perf_counter()
         self.global_open_nodes = []
-        self.enemy_start = []
+        self.enemy_approximate_positions = []
         self.initial = True
 
     def map_callback(self, message):
@@ -47,18 +47,20 @@ class StartAreasModel:
             self.occupancy_grid = message
 
     def listener_callback(self, message):
-        self.enemy_start.append(message) # message is a tuple?
-        if self.occupancy_grid and self.initial:
-            self.initial = False
-            self.search_separated_possible_start_areas(self.enemy_start[0][0], self.enemy_start[0][1])
-            self.calculate_start_area_probabilities()
-        elif self.occupancy_grid:
-            self.probability_of_point_from_start_block_after_seconds(message,
-                                                                     (perf_counter() - self.start_time) * MAX_SPEED)
+        self.enemy_approximate_positions.append(message) # message is a tuple?
         if self.occupancy_grid:
+            if self.initial:
+                self.initial = False
+                self.search_separated_possible_start_areas(self.enemy_approximate_positions[0][0], self.enemy_approximate_positions[0][1])
+                self.calculate_start_area_probabilities()
+            else:
+                self.probability_of_point_from_start_block_after_seconds(message,
+                                                                     (perf_counter() - self.start_time) * MAX_SPEED)
+       
             # self.pub.publish(self.results)
             # results -> [('x', 'y', 'probability'), ('x2', 'y2', 'probability2'), ...]
-            self.pub.publish(('x', 'y', 'probability'))
+            halfway_intercept_position = self.get_next_guard_position_when_guarding_area(self.most_likely_start_area_number)
+            self.pub.publish([(halfway_intercept_position[0], halfway_intercept_position[1], self.start_area_probabilities)])
 
     def is_tile_in_bounds(self, coord):
         return 0 <= coord[0] < self.occupancy_grid_size and 0 <= coord[1] < self.occupancy_grid_size
@@ -68,6 +70,9 @@ class StartAreasModel:
 
     def position_to_index(self, x, y):
         return int(round(x / self.occupancy_grid_tile_size)), int(round(y / self.occupancy_grid_tile_size))
+
+    def position_to_index(self, coord):
+        return position_to_index(coord[0],coord[1])
 
     def is_coord_considered_free(self, coord):
         return coord >= 0 and self.occupancy_grid[coord] < self.is_reachable_threshold
@@ -102,29 +107,54 @@ class StartAreasModel:
 
     def calculate_start_area_probabilities(self):
         self.start_area_probabilities = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
+        best_so_far = 0
         i = 0
         for n in self.nodes_in_block:
             self.start_area_probabilities[i] = len(n) / self.total_reachable_tiles_in_start_area
+            if self.start_area_probabilities[i] > best_so_far :
+                best_so_far = self.start_area_probabilities[i]
+                self.most_likely_start_area_number = i
             i += 1
 
     def update_area_probabilities_based_on_mean(self, new_area_probabilities):
         i = 0
+        best_so_far = 0
         for probability in new_area_probabilities:
             diff = probability - self.start_area_probabilities[i]
             self.start_area_probabilities[i] = self.start_area_probabilities[
                                                    i] + diff / self.probability_update_iteration
+            if self.start_area_probabilities[i] > best_so_far :
+                best_so_far = self.start_area_probabilities[i]
+                self.most_likely_start_area_number = i
             i += 1
 
         self.probability_update_iteration += 1
 
     def update_area_probabilities_multiply_normalized(self, new_area_probabilities):
         new_total_probabilities = 0
+        best_so_far = 0
         for idx, (probability, start_prob) in enumerate(zip(new_area_probabilities, self.start_area_probabilities)):
             self.start_area_probabilities[idx] = probability * start_prob
             new_total_probabilities += start_prob
 
         for idx, probability in enumerate(self.start_area_probabilities):
             self.start_area_probabilities[idx] = probability / new_total_probabilities
+            if self.start_area_probabilities[idx] > best_so_far :
+                best_so_far = self.start_area_probabilities[i]
+                self.most_likely_start_area_number = i
+
+    def get_next_guard_position_when_guarding_area(self, start_area_index):
+        adversary_coordinate = self.position_to_index(self.enemy_approximate_positions.top())
+        adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
+        return self.find_halway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance, adversary_coordinate)
+
+    def find_halway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
+        p = coord
+        while(self.start_area_distances[start_area_index][p] > distance / 2):
+            for (neighbour,_) in self.get_adjacent_fields(p):
+                if(self.start_area_distances[start_area_index][neighbour] < p):
+                    p = self.start_area_distances[start_area_index][neighbour]
+        return p
 
     def probability_of_point_from_start_block_after_seconds(self, position, max_distance_traveled_so_far):
         total_points_reachable = 0
