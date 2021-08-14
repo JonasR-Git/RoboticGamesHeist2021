@@ -16,7 +16,7 @@ class StartAreasModel:
         rospy.Subscriber("/guard/guard_perception", Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/target_position', Odometry, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
-        self.occupancy_grid = np.array((0, 0))
+        self.occupancy_grid = []
         self.occupancy_grid_tile_size = 0.05
         self.occupancy_grid_size = 200
         self.max_error_distance = 1
@@ -44,6 +44,7 @@ class StartAreasModel:
         self.start_time = perf_counter()
         self.global_open_nodes = []
         self.enemy_approximate_positions = []
+
         self.has_map = False
         self.initial = True
 
@@ -81,6 +82,15 @@ class StartAreasModel:
     def position_to_index(self, x, y):
         return int(round(x / self.occupancy_grid_tile_size)), int(round(y / self.occupancy_grid_tile_size))
 
+    def get_2d_position_from_odom(self, odom):
+        return (odom.pose.pose.positon.x, odom.pose.pose.position.y)
+
+    def coord_2_d_to_1_d(self, coord):
+        return coord[0] * self.occupancy_grid_size + coord[1]
+
+    def get_grid_value_at_coord(self, coord):
+        return self.occupancy_grid[self.coord_2_d_to_1_d(coord)]
+
     def position_to_index(self, coord):
         return self.position_to_index(coord[0],coord[1])
 
@@ -88,10 +98,12 @@ class StartAreasModel:
         return (coord[0] * self.occupancy_grid_tile_size, coord[1] * self.occupancy_grid_tile_size)
 
     def is_coord_considered_free(self, coord):
-        return coord >= 0 and self.occupancy_grid[coord] < self.is_reachable_threshold
+        return coord >= 0 and self.get_grid_value_at_coord(coord) < self.is_reachable_threshold
 
     def is_coord_considered_free_in_map(self, coord, map_view):
         return coord >= 0 and map_view[coord] < self.is_reachable_threshold
+
+    
 
     @staticmethod
     def sqr_magnitude(coord):
@@ -157,7 +169,7 @@ class StartAreasModel:
                 self.most_likely_start_area_number = idx
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
-        adversary_coordinate = self.position_to_index(self.enemy_approximate_positions.top())
+        adversary_coordinate = self.position_to_index(self.get_2d_position_from_odom(self.enemy_approximate_positions.top()))
         adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
         return self.find_halway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance, adversary_coordinate)
 
@@ -211,11 +223,12 @@ class StartAreasModel:
                 coord = (start_index[0] + x, start_index[1] + y)
                 if ((x * x + y * y) / self.occupancy_grid_tile_size < self.sqr_max_noise_tile_error
                         and self.is_tile_in_bounds(coord)):
-                    start_map[coord] = self.occupancy_grid[coord]
+                    start_map[coord] = self.get_grid_value_at_coord([coord])
 
         return start_map
 
-    def search_separated_possible_start_areas(self, start_x, start_y):
+    def search_separated_possible_start_areas(self, adversary_odometry):
+        (start_x, starty) = self.get_2d_position_from_odom(adversary_odometry)
         start_map = self.build_start_map(start_x, start_y)
         start_index = self.position_to_index(start_x, start_y)
         self.node_block_id = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=int)
