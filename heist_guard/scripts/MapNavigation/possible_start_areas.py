@@ -2,6 +2,7 @@
 import numpy as np
 import math
 import rospy
+import sys
 from nav_msgs.msg import OccupancyGrid, Odometry
 from time import perf_counter
 
@@ -12,7 +13,7 @@ class StartAreasModel:
 
     def __init__(self):
         rospy.Subscriber("/map",OccupancyGrid, self.map_callback)  # todo:: adjust message type for occupancy grid data
-        rospy.Subscriber("/guard/guard_perception", Odometry, self.map_callback)
+        rospy.Subscriber("/guard/guard_perception", Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/target_position', Odometry, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
         self.occupancy_grid = np.array((0, 0))
@@ -43,28 +44,33 @@ class StartAreasModel:
         self.start_time = perf_counter()
         self.global_open_nodes = []
         self.enemy_approximate_positions = []
+        self.has_map = False
         self.initial = True
 
     def map_callback(self, message):
-        if len(self.occupancy_grid)>0:
+        if not self.has_map:
+            self.has_map = True
             self.occupancy_grid = message
 
     def listener_callback(self, message):
-        self.enemy_approximate_positions.append(message) # message is a tuple?
-        if len(self.occupancy_grid)>0:
+        self.enemy_approximate_positions.append(message)  # message is a tuple?
+        if self.has_map:
             if self.initial:
                 self.initial = False
-                self.search_separated_possible_start_areas(self.enemy_approximate_positions[0][0], self.enemy_approximate_positions[0][1])
+                self.search_separated_possible_start_areas(self.enemy_approximate_positions[0][0],
+                                                           self.enemy_approximate_positions[0][1])
                 self.calculate_start_area_probabilities()
             else:
                 self.probability_of_point_from_start_block_after_seconds(message,
-                                                                     (perf_counter() - self.start_time) * MAX_SPEED)
-       
+                                                                         (perf_counter() - self.start_time) * MAX_SPEED)
+
             # self.pub.publish(self.results)
             # results -> [('x', 'y', 'probability'), ('x2', 'y2', 'probability2'), ...]
-            halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(self.most_likely_start_area_number)
+            halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
+                self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
-            self.pub.publish([(halfway_intercept_position[0], halfway_intercept_position[1], self.start_area_probabilities)])
+            self.pub.publish(
+                [(halfway_intercept_position[0], halfway_intercept_position[1], self.start_area_probabilities)])
 
     def is_tile_in_bounds(self, coord):
         return 0 <= coord[0] < self.occupancy_grid_size and 0 <= coord[1] < self.occupancy_grid_size
