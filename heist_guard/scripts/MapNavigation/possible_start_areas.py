@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 import numpy as np
 import math
 import rospy
@@ -12,7 +12,7 @@ MAX_SPEED = 0.4
 class StartAreasModel:
 
     def __init__(self):
-        rospy.Subscriber("/map",OccupancyGrid, self.map_callback)  # todo:: adjust message type for occupancy grid data
+        rospy.Subscriber("/map", OccupancyGrid, self.map_callback)  # todo:: adjust message type for occupancy grid data
         rospy.Subscriber("/guard/guard_perception", Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/target_position', Odometry, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
@@ -62,8 +62,7 @@ class StartAreasModel:
         if self.has_map:
             if self.initial:
                 self.initial = False
-                self.search_separated_possible_start_areas(self.enemy_approximate_positions[0][0],
-                                                           self.enemy_approximate_positions[0][1])
+                self.search_separated_possible_start_areas(self.enemy_approximate_positions[0])
                 self.calculate_start_area_probabilities()
             else:
                 self.probability_of_point_from_start_block_after_seconds(message,
@@ -86,7 +85,8 @@ class StartAreasModel:
         return int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
 
     def get_2d_position_from_odom(self, odom):
-        return (odom.pose.pose.positon.x + int(self.map_width / 2), odom.pose.pose.position.y + int(self.map_height / 2))
+        return (
+            odom.pose.pose.position.x + int(self.map_width / 2), odom.pose.pose.position.y + int(self.map_height / 2))
 
     def coord_2_d_to_1_d(self, coord):
         return coord[1] * self.map_width + coord[0]
@@ -94,11 +94,11 @@ class StartAreasModel:
     def get_grid_value_at_coord(self, coord):
         return self.occupancy_grid[self.coord_2_d_to_1_d(coord)]
 
-    def position_to_index(self, coord):
-        return self.position_to_index(coord[0],coord[1])
+    def position_to_tuple(self, coord):
+        return self.position_to_index(coord[0], coord[1])
 
     def index_to_position(self, coord):
-        return (coord[0] * self.map_resolution, coord[1] * self.map_resolution)
+        return coord[0] * self.map_resolution, coord[1] * self.map_resolution
 
     def get_odom_to_publish(self, p, start_area):
         odom = Odometry()
@@ -111,8 +111,6 @@ class StartAreasModel:
 
     def is_coord_considered_free_in_map(self, coord, map_view):
         return coord >= 0 and map_view[coord] < self.is_reachable_threshold
-
-    
 
     @staticmethod
     def sqr_magnitude(coord):
@@ -145,7 +143,7 @@ class StartAreasModel:
         i = 0
         for n in self.nodes_in_block:
             self.start_area_probabilities[i] = len(n) / self.total_reachable_tiles_in_start_area
-            if self.start_area_probabilities[i] > best_so_far :
+            if self.start_area_probabilities[i] > best_so_far:
                 best_so_far = self.start_area_probabilities[i]
                 self.most_likely_start_area_number = i
             i += 1
@@ -157,7 +155,7 @@ class StartAreasModel:
             diff = probability - self.start_area_probabilities[i]
             self.start_area_probabilities[i] = self.start_area_probabilities[
                                                    i] + diff / self.probability_update_iteration
-            if self.start_area_probabilities[i] > best_so_far :
+            if self.start_area_probabilities[i] > best_so_far:
                 best_so_far = self.start_area_probabilities[i]
                 self.most_likely_start_area_number = i
             i += 1
@@ -173,20 +171,22 @@ class StartAreasModel:
 
         for idx, probability in enumerate(self.start_area_probabilities):
             self.start_area_probabilities[idx] = probability / new_total_probabilities
-            if self.start_area_probabilities[idx] > best_so_far :
+            if self.start_area_probabilities[idx] > best_so_far:
                 best_so_far = self.start_area_probabilities[idx]
                 self.most_likely_start_area_number = idx
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
-        adversary_coordinate = self.position_to_index(self.get_2d_position_from_odom(self.enemy_approximate_positions.top()))
+        adversary_coordinate = self.position_to_tuple(
+            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1]))
         adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
-        return self.find_halway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance, adversary_coordinate)
+        return self.find_halway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance,
+                                                                           adversary_coordinate)
 
     def find_halway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
         p = coord
-        while(self.start_area_distances[start_area_index][p] > distance / 2):
-            for (neighbour,_) in self.get_adjacent_fields(p):
-                if(self.start_area_distances[start_area_index][neighbour] < p):
+        while (self.start_area_distances[start_area_index][p] > distance / 2):
+            for (neighbour, _) in self.get_adjacent_fields(p):
+                if (self.start_area_distances[start_area_index][neighbour] < p):
                     p = self.start_area_distances[start_area_index][neighbour]
         return p
 
@@ -237,7 +237,7 @@ class StartAreasModel:
         return start_map
 
     def search_separated_possible_start_areas(self, adversary_odometry):
-        (start_x, starty) = self.get_2d_position_from_odom(adversary_odometry)
+        (start_x, start_y) = self.get_2d_position_from_odom(adversary_odometry)
         start_map = self.build_start_map(start_x, start_y)
         start_index = self.position_to_index(start_x, start_y)
         self.node_block_id = np.full((self.map_width, self.map_height), -1, dtype=int)
