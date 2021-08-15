@@ -72,9 +72,11 @@ class StartAreasModel:
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
             self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
-            self.tester(4, 1)
-            self.tester(3.25, 3.0)
+            """
+            self.tester(4, 2)
+            self.tester(4, 3)
             self.tester(-2, 3.0)
+            """
 
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message)  # message is a tuple?
@@ -189,7 +191,7 @@ class StartAreasModel:
         best_so_far = 0
         for idx, (probability, start_prob) in enumerate(zip(new_area_probabilities, self.start_area_probabilities)):
             self.start_area_probabilities[idx] = probability * start_prob
-            new_total_probabilities += start_prob
+            new_total_probabilities += self.start_area_probabilities[idx]
 
         for idx, probability in enumerate(self.start_area_probabilities):
             self.start_area_probabilities[idx] = probability / new_total_probabilities
@@ -219,7 +221,7 @@ class StartAreasModel:
         start_x, start_y = self.get_2d_position_from_odom(adversary_odometry)
         start_index = self.position_to_index(start_x, start_y)
         total_points_reachable = 0
-        probability_points_for_block = np.full(self.disconnected_possible_start_areas, 0, dtype=int)
+        probability_points_for_block = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
         # check all tiles around the heard position where the adversary could possibly be
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
@@ -247,7 +249,7 @@ class StartAreasModel:
         if total_probability_points > 0:
             for idx, probability in enumerate(probability_points_for_block):
                 probability_points_for_block[idx] = probability / total_probability_points
-            self.update_area_probabilities_based_on_mean(probability_points_for_block)
+            self.update_area_probabilities_multiply_normalized(probability_points_for_block)
 
     def build_start_map(self, start_x, start_y):
         start_map = np.full((self.map_width, self.map_height), -1, dtype=int)
