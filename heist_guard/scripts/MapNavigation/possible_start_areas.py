@@ -13,7 +13,7 @@ class StartAreasModel:
 
     def __init__(self):
         rospy.Subscriber("/map", OccupancyGrid, self.map_callback)  # todo:: adjust message type for occupancy grid data
-        rospy.Subscriber("/guard/guard_perception", Odometry, self.listener_callback)
+        rospy.Subscriber("/evader/odom", Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
         self.occupancy_grid = []
@@ -53,6 +53,7 @@ class StartAreasModel:
         self.initial = True
         self.default_orientation = None
         self.frame_id = 0
+        self.last_sent = perf_counter()
 
     def tester(self, x, y):
         odometry = Odometry()
@@ -62,19 +63,24 @@ class StartAreasModel:
 
     def map_callback(self, message):
         if not self.has_map:
-            self.has_map = True
-            self.occupancy_grid = message.data
+            self.occupancy_grid = [x for x in message.data]
             self.map_width = message.info.width
             self.map_height = message.info.height
+            for x in range(0, self.map_width):
+                for y in range(0, self.map_height):
+                    index = self.coord_2_d_to_1_d((x, y))
+                    index_two = self.coord_2_d_to_1_d(
+                        (x - 10, y - 10))
+                    self.occupancy_grid[index_two] = message.data[index]
             self.map_resolution = message.info.resolution
             self.map_width_in_meter = self.map_width * self.map_resolution
             self.map_height_in_meter = self.map_height * self.map_resolution
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
             self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
+            self.has_map = True
             """
-            self.tester(4, 2)
-            self.tester(4, 3)
+            self.tester(0, 0)
             self.tester(-2, 3.0)
             """
 
@@ -91,12 +97,13 @@ class StartAreasModel:
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
 
-            # self.pub.publish(self.results)
-            # results -> [('x', 'y', 'probability'), ('x2', 'y2', 'probability2'), ...]
+            if perf_counter() - self.last_sent < 5:
+                return
             halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
                 self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
             self.pub.publish(self.get_pose_to_publish(halfway_intercept_position, self.most_likely_start_area_number))
+            self.last_sent = perf_counter()
 
     def is_tile_in_bounds(self, coord):
         return 0 <= coord[0] < self.map_width and 0 <= coord[1] < self.map_height
@@ -105,7 +112,8 @@ class StartAreasModel:
         return self.start_area_probabilities[block_id] > self.threshold_to_reject_start_area
 
     def position_to_index(self, x, y):
-        return int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
+        x, y = int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
+        return x, y
 
     def get_2d_position_from_odom(self, odom):
         return (
@@ -113,7 +121,7 @@ class StartAreasModel:
             odom.pose.pose.position.y + self.map_height_in_meter / 2)
 
     def coord_2_d_to_1_d(self, coord):
-        return coord[1] * self.map_width + coord[0]
+        return int(coord[1] * self.map_width + coord[0])
 
     def get_grid_value_at_coord(self, coord):
         return self.occupancy_grid[self.coord_2_d_to_1_d(coord)]
@@ -122,14 +130,15 @@ class StartAreasModel:
         return self.position_to_index(coord[0], coord[1])
 
     def index_to_position(self, coord):
-        return coord[0] * self.map_resolution, coord[1] * self.map_resolution
+        x, y = coord[0] * self.map_resolution, coord[1] * self.map_resolution
+        return x, y
 
     def get_pose_to_publish(self, p, start_area):
         pose = PoseStamped()
         pose.header.frame_id = 'map'
         self.frame_id += 1
-        pose.pose.position.x = p[0] - int(self.map_width_in_meter / 2)
-        pose.pose.position.y = p[1] - int(self.map_height_in_meter / 2)
+        pose.pose.position.x = p[0] - self.map_width_in_meter / 2
+        pose.pose.position.y = p[1] - self.map_height_in_meter / 2
         pose.pose.orientation.w = 1
         # pose.pose.position.z = self.start_area_probabilities[start_area]
         return pose
@@ -217,7 +226,6 @@ class StartAreasModel:
         return coord
 
     def probability_of_point_from_start_block_after_seconds(self, adversary_odometry, max_distance_traveled_so_far):
-        max_distance_traveled_so_far = 8
         start_x, start_y = self.get_2d_position_from_odom(adversary_odometry)
         start_index = self.position_to_index(start_x, start_y)
         total_points_reachable = 0
@@ -269,8 +277,8 @@ class StartAreasModel:
         start_index = self.position_to_index(start_x, start_y)
         self.node_block_id = np.full((self.map_width, self.map_height), -1, dtype=int)
         block_count = 0
-        for x in range(0, self.noise_diameter, 1):
-            for y in range(0, self.noise_diameter, 1):
+        for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
+            for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
                 coord = start_index[0] + x, start_index[1] + y
                 if (self.node_block_id[coord] == -1
                         and self.is_coord_considered_free_in_map(coord, start_map)
