@@ -17,13 +17,14 @@ class StartAreasModel:
         self.pub = rospy.Publisher('/target_position', Odometry, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
         self.occupancy_grid = []
-        self.occupancy_grid_tile_size = 0.05
-        self.occupancy_grid_size = 200
+        self.map_resolution = 0.05
+        self.map_width = 200
+        self.map_height = 200
         self.max_error_distance = 1
-        self.max_noise_tile_error = math.ceil(self.max_error_distance / self.occupancy_grid_tile_size)
+        self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
         self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
         self.start_map_size = self.max_noise_tile_error * 2 + 1
-        self.is_reachable_threshold = 0.3
+        self.is_reachable_threshold = 30
         self.sqrtOf2 = math.sqrt(2)
 
         # if a start area has the likelihood of under a half percent it is rejected
@@ -51,7 +52,10 @@ class StartAreasModel:
     def map_callback(self, message):
         if not self.has_map:
             self.has_map = True
-            self.occupancy_grid = message
+            self.occupancy_grid = message.data
+            self.map_width = message.info.width
+            self.map_height = message.info.height
+            self.map_resolution = message.info.resolution
 
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message)  # message is a tuple?
@@ -70,23 +74,22 @@ class StartAreasModel:
             halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
                 self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
-            self.pub.publish(
-                [(halfway_intercept_position[0], halfway_intercept_position[1], self.start_area_probabilities)])
+            self.pub.publish(self.get_odom_to_publish(halfway_intercept_position, self.most_likely_start_area_number))
 
     def is_tile_in_bounds(self, coord):
-        return 0 <= coord[0] < self.occupancy_grid_size and 0 <= coord[1] < self.occupancy_grid_size
+        return 0 <= coord[0] < self.map_width and 0 <= coord[1] < self.map_height
 
     def is_start_area_active(self, block_id):
         return self.start_area_probabilities[block_id] < self.threshold_to_reject_start_area
 
     def position_to_index(self, x, y):
-        return int(round(x / self.occupancy_grid_tile_size)), int(round(y / self.occupancy_grid_tile_size))
+        return int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
 
     def get_2d_position_from_odom(self, odom):
-        return (odom.pose.pose.positon.x + int(self.occupancy_grid_size / 2), odom.pose.pose.position.y + int(self.occupancy_grid_size / 2))
+        return (odom.pose.pose.positon.x + int(self.map_width / 2), odom.pose.pose.position.y + int(self.map_height / 2))
 
     def coord_2_d_to_1_d(self, coord):
-        return coord[0] * self.occupancy_grid_size + coord[1]
+        return coord[1] * self.map_width + coord[0]
 
     def get_grid_value_at_coord(self, coord):
         return self.occupancy_grid[self.coord_2_d_to_1_d(coord)]
@@ -95,7 +98,13 @@ class StartAreasModel:
         return self.position_to_index(coord[0],coord[1])
 
     def index_to_position(self, coord):
-        return (coord[0] * self.occupancy_grid_tile_size, coord[1] * self.occupancy_grid_tile_size)
+        return (coord[0] * self.map_resolution, coord[1] * self.map_resolution)
+
+    def get_odom_to_publish(self, p, start_area):
+        odom = Odometry()
+        odom.pose.pose.position.x = p[0] - int(self.map_width / 2)
+        odom.pose.pose.position.y = p[1] - int(self.map_height / 2)
+        odom.pose.pose.position.z = self.start_area_probabilities[start_area]
 
     def is_coord_considered_free(self, coord):
         return coord >= 0 and self.get_grid_value_at_coord(coord) < self.is_reachable_threshold
@@ -189,7 +198,7 @@ class StartAreasModel:
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
                 coord = (start_index[0] + x, start_index[1] + y)
-                if ((x * x + y * y) / self.occupancy_grid_tile_size < self.sqr_max_noise_tile_error
+                if ((x * x + y * y) / self.map_resolution < self.sqr_max_noise_tile_error
                         and self.is_tile_in_bounds(coord)
                         and self.is_coord_considered_free(coord)):
                     blocks_that_reach_tile = []
@@ -215,13 +224,13 @@ class StartAreasModel:
         self.update_area_probabilities_based_on_mean(probability_points_for_block)
 
     def build_start_map(self, start_x, start_y):
-        start_map = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=int)
+        start_map = np.full((self.map_width, self.map_height), -1, dtype=int)
         start_index = self.position_to_index(start_x, start_y)
         start_map_index = (self.max_noise_tile_error, self.max_noise_tile_error)
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
                 coord = (start_index[0] + x, start_index[1] + y)
-                if ((x * x + y * y) / self.occupancy_grid_tile_size < self.sqr_max_noise_tile_error
+                if ((x * x + y * y) / self.map_resolution < self.sqr_max_noise_tile_error
                         and self.is_tile_in_bounds(coord)):
                     start_map[coord] = self.get_grid_value_at_coord([coord])
 
@@ -231,7 +240,7 @@ class StartAreasModel:
         (start_x, starty) = self.get_2d_position_from_odom(adversary_odometry)
         start_map = self.build_start_map(start_x, start_y)
         start_index = self.position_to_index(start_x, start_y)
-        self.node_block_id = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=int)
+        self.node_block_id = np.full((self.map_width, self.map_height), -1, dtype=int)
         block_count = 0
         for x in range(0, self.start_map_size, 1):
             for y in range(0, self.start_map_size, 1):
@@ -270,7 +279,7 @@ class StartAreasModel:
     def build_start_area_distances(self):
         open_nodes = []
         for i in range(0, self.disconnected_possible_start_areas):
-            distances_to_block = np.full((self.occupancy_grid_size, self.occupancy_grid_size), -1, dtype=float)
+            distances_to_block = np.full((self.map_width, self.map_height), math.inf, dtype=float)
             for n in self.global_open_nodes:
                 if self.node_block_id[n] == i:
                     distances_to_block[n] = 0
