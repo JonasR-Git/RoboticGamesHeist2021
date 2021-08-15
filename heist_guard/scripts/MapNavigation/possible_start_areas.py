@@ -17,9 +17,12 @@ class StartAreasModel:
         self.pub = rospy.Publisher('/target_position', Odometry, queue_size=10)
         # occupancy grid stuff and config of occupancy grid
         self.occupancy_grid = []
-        self.map_resolution = 0.05
-        self.map_width = 200
-        self.map_height = 200
+        self.map_resolution = 0
+        self.map_width = 0
+        self.map_height = 0
+        self.map_width_in_meter = 0
+        self.map_height_in_meter = 0
+
         self.max_error_distance = 1
         self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
         self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
@@ -56,6 +59,8 @@ class StartAreasModel:
             self.map_width = message.info.width
             self.map_height = message.info.height
             self.map_resolution = message.info.resolution
+            self.map_width_in_meter = self.map_width * self.map_resolution
+            self.map_height_in_meter = self.map_height * self.map_resolution
 
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message)  # message is a tuple?
@@ -86,7 +91,7 @@ class StartAreasModel:
 
     def get_2d_position_from_odom(self, odom):
         return (
-            odom.pose.pose.position.x + int(self.map_width / 2), odom.pose.pose.position.y + int(self.map_height / 2))
+            odom.pose.pose.position.x + int(self.map_width_in_meter / 2), odom.pose.pose.position.y + int(self.map_height_in_meter / 2))
 
     def coord_2_d_to_1_d(self, coord):
         return coord[1] * self.map_width + coord[0]
@@ -102,8 +107,8 @@ class StartAreasModel:
 
     def get_odom_to_publish(self, p, start_area):
         odom = Odometry()
-        odom.pose.pose.position.x = p[0] - int(self.map_width / 2)
-        odom.pose.pose.position.y = p[1] - int(self.map_height / 2)
+        odom.pose.pose.position.x = p[0] - int(self.map_width_in_meter / 2)
+        odom.pose.pose.position.y = p[1] - int(self.map_height_in_meter / 2)
         odom.pose.pose.position.z = self.start_area_probabilities[start_area]
 
     def is_coord_considered_free(self, coord):
