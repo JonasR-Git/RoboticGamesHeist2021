@@ -2,7 +2,6 @@
 import numpy as np
 import math
 import rospy
-import sys
 from nav_msgs.msg import OccupancyGrid, Odometry
 from geometry_msgs.msg import PoseStamped
 from time import perf_counter
@@ -55,6 +54,12 @@ class StartAreasModel:
         self.default_orientation = None
         self.frame_id = 0
 
+    def tester(self, x, y):
+        odometry = Odometry()
+        odometry.pose.pose.position.x = x
+        odometry.pose.pose.position.y = y
+        self.listener_callback(odometry)
+
     def map_callback(self, message):
         if not self.has_map:
             self.has_map = True
@@ -67,6 +72,9 @@ class StartAreasModel:
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
             self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
+            self.tester(4, 1)
+            self.tester(3.25, 3.0)
+            self.tester(-2, 3.0)
 
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message)  # message is a tuple?
@@ -92,7 +100,7 @@ class StartAreasModel:
         return 0 <= coord[0] < self.map_width and 0 <= coord[1] < self.map_height
 
     def is_start_area_active(self, block_id):
-        return self.start_area_probabilities[block_id] < self.threshold_to_reject_start_area
+        return self.start_area_probabilities[block_id] > self.threshold_to_reject_start_area
 
     def position_to_index(self, x, y):
         return int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
@@ -207,6 +215,7 @@ class StartAreasModel:
         return coord
 
     def probability_of_point_from_start_block_after_seconds(self, adversary_odometry, max_distance_traveled_so_far):
+        max_distance_traveled_so_far = 8
         start_x, start_y = self.get_2d_position_from_odom(adversary_odometry)
         start_index = self.position_to_index(start_x, start_y)
         total_points_reachable = 0
@@ -215,7 +224,7 @@ class StartAreasModel:
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
                 coord = (start_index[0] + x, start_index[1] + y)
-                if ((x * x + y * y) / self.map_resolution < self.sqr_max_noise_tile_error
+                if ((x * x + y * y) < self.sqr_max_noise_tile_error
                         and self.is_tile_in_bounds(coord)
                         and self.is_coord_considered_free(coord)):
                     blocks_that_reach_tile = []
@@ -264,7 +273,7 @@ class StartAreasModel:
                 if (self.node_block_id[coord] == -1
                         and self.is_coord_considered_free_in_map(coord, start_map)
                         and self.is_tile_in_bounds(coord)):
-                    if self.bfs(start_x, start_y, block_count, start_map):
+                    if self.bfs(coord[0], coord[1], block_count, start_map):
                         block_count += 1
 
         self.disconnected_possible_start_areas = block_count
@@ -273,10 +282,10 @@ class StartAreasModel:
     # global_offset is the offset to add to the current coordinate to get the global coordinate
     # returns true if at least one field was marked
     def bfs(self, start_x, start_y, block_id, graph):
-        open_nodes = [self.position_to_index(start_x, start_y)]
+        open_nodes = [(start_x, start_y)]
         marked_nodes_count = 0
         while open_nodes:
-            top = open_nodes.pop()
+            top = open_nodes.pop(0)
             marked_nodes_count += 1
             self.node_block_id[top] = block_id
             self.global_open_nodes.append(top)
@@ -301,10 +310,10 @@ class StartAreasModel:
                     distances_to_block[n] = 0
                     open_nodes.append(n)
             while open_nodes:
-                top = open_nodes.pop()
+                top = open_nodes.pop(0)
                 for (p, dis) in self.get_adjacent_fields(top):
                     if self.is_tile_in_bounds(p) and self.is_coord_considered_free(p):
-                        if distances_to_block[p] == -1:
+                        if distances_to_block[p] == math.inf:
                             open_nodes.append(p)
                         distance = distances_to_block[top] + dis
                         if distance < distances_to_block[p]:
