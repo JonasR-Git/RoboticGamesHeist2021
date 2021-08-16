@@ -76,7 +76,7 @@ class StartAreasModel:
             self.map_resolution = message.info.resolution
             self.map_width_in_meter = self.map_width * self.map_resolution
             self.map_height_in_meter = self.map_height * self.map_resolution
-            self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
+            self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution) + 2
             self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
 
