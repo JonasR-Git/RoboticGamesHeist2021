@@ -66,6 +66,7 @@ class StartAreasModel:
 
     def map_callback(self, message):
         if not self.has_map:
+            print('map')
             self.occupancy_grid = [x for x in message.data]
             self.map_width = message.info.width
             self.map_height = message.info.height
@@ -112,6 +113,7 @@ class StartAreasModel:
         if self.has_map:
             # the first time a position is received
             if self.initial:
+                print('0')
                 alpha = 2 * math.pi * random.random()
                 x = math.cos(alpha)
                 y = math.sin(alpha)
@@ -126,9 +128,15 @@ class StartAreasModel:
             else:
                 if perf_counter() - self.last_sent < 2:
                     return
+                print('1')
+                alpha = 2 * math.pi * random.random()
+                x = math.cos(alpha)
+                y = math.sin(alpha)
+                message.pose.pose.position.x += x
+                message.pose.pose.position.x += y
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
-                print('...')
+                print('2')
             halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
                 self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
@@ -261,6 +269,7 @@ class StartAreasModel:
         is_free = self.is_coord_considered_free(coord)
         for n, _ in self.get_adjacent_fields(coord):
             is_free = is_free and self.is_coord_considered_free(n)
+        return is_free
 
     def find_closest_valid_point(self, coord):
         open_nodes = [(coord[0], coord[1])]
@@ -269,7 +278,7 @@ class StartAreasModel:
 
             total_prob_to_reach_point = 0
             for i in range(0, self.disconnected_possible_start_areas):
-                if self.start_area_distances[i][top] < math.inf and self.is_point_free(top):
+                if self.is_tile_in_bounds(top) and self.start_area_distances[i][top] < math.inf and self.is_point_free(top):
                     total_prob_to_reach_point += self.start_area_probabilities[i]
                     if total_prob_to_reach_point >= 0.25:
                         return top
