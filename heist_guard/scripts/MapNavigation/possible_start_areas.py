@@ -12,10 +12,10 @@ MAX_SPEED = 0.4
 class StartAreasModel:
 
     def __init__(self):
-        rospy.Subscriber("/map", OccupancyGrid, self.map_callback)  # todo:: adjust message type for occupancy grid data
+        rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
         rospy.Subscriber("/evader/odom", Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
-        # occupancy grid stuff and config of occupancy grid
+        # occupancy grid data, grid config of occupancy grid
         self.occupancy_grid = []
         self.map_resolution = 0
         self.map_width = 0
@@ -23,15 +23,17 @@ class StartAreasModel:
         self.map_width_in_meter = 0
         self.map_height_in_meter = 0
 
+        #noise error data and config
         self.max_error_distance = 1
         self.max_noise_tile_error = 0
         self.sqr_max_noise_tile_error = 0
         self.noise_diameter = 0
-        self.is_reachable_threshold = 30
+        #a tile is considered free if it is under this value
+        self.is_reachable_threshold = 15
         self.sqrtOf2 = math.sqrt(2)
 
-        # if a start area has the likelihood of under a half percent it is rejected
-        self.threshold_to_reject_start_area = 0.005
+        # if a start area has the likelihood of under this value it is not considered an option
+        self.threshold_to_reject_start_area = 0.0025
 
         self.total_reachable_tiles_in_start_area = 0
         self.disconnected_possible_start_areas = 0
@@ -66,19 +68,39 @@ class StartAreasModel:
             self.occupancy_grid = [x for x in message.data]
             self.map_width = message.info.width
             self.map_height = message.info.height
-            for x in range(0, self.map_width):
-                for y in range(0, self.map_height):
-                    index = self.coord_2_d_to_1_d((x, y))
-                    index_two = self.coord_2_d_to_1_d(
-                        (x - 10, y - 10))
-                    self.occupancy_grid[index_two] = message.data[index]
             self.map_resolution = message.info.resolution
             self.map_width_in_meter = self.map_width * self.map_resolution
             self.map_height_in_meter = self.map_height * self.map_resolution
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
             self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
+            
+            #offset occupancy grid so its map aligns with the real world map
+            real_world_pos_of_zero_zero = (message.info.origin.position.x, message.info.origin.position.y)
+
+            correct_world_x_pos_half_half = 0
+            correct_world_y_pos_half_half = 0
+
+            actual_world_pos_of_half_half_x = real_world_pos_of_zero_zero[0] + self.map_width_in_meter / 2
+            actual_world_pos_of_half_half_y = real_world_pos_of_zero_zero[1] + self.map_height_in_meter / 2
+
+            x_diff = actual_world_pos_of_half_half_x - correct_world_x_pos_half_half
+            y_diff = actual_world_pos_of_half_half_y - correct_world_y_pos_half_half
+
+            tile_x_movement = x_diff / self.map_resolution
+            tile_y_movement = y_diff / self.map_resolution
+
+            if tile_x_movement > 0 and tile_y_movement > 0:
+                #shift occupancy grid based on the origin of the 
+                for x in range(0, self.map_width - max(0,tile_x_movement)):
+                    for y in range(0, self.map_height - min(0,tile_x_movement)):
+                        index = self.coord_2_d_to_1_d((x, y))
+                        index_two = self.coord_2_d_to_1_d(
+                            (x + tile_x_movement, y + tile_y_movement))
+                        self.occupancy_grid[index_two] = message.data[index]
+                
             self.has_map = True
+            
             """
             self.tester(0, 0)
             self.tester(-2, 3.0)
@@ -87,6 +109,7 @@ class StartAreasModel:
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message)  # message is a tuple?
         if self.has_map:
+            #the first time a position is recieved 
             if self.initial:
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -109,7 +132,7 @@ class StartAreasModel:
         return 0 <= coord[0] < self.map_width and 0 <= coord[1] < self.map_height
 
     def is_start_area_active(self, block_id):
-        return self.start_area_probabilities[block_id] > self.threshold_to_reject_start_area
+        return self.start_area_probabilities[block_id] >= self.threshold_to_reject_start_area
 
     def position_to_index(self, x, y):
         x, y = int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
@@ -239,6 +262,7 @@ class StartAreasModel:
                         and self.is_coord_considered_free(coord)):
                     blocks_that_reach_tile = []
 
+                    #check how many blocks can reach that tile
                     for block_id in range(0, self.disconnected_possible_start_areas):
                         if (self.is_start_area_active(block_id) and
                                 self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
@@ -247,6 +271,7 @@ class StartAreasModel:
                     number_blocks_that_reach_tile = len(blocks_that_reach_tile)
                     total_points_reachable += number_blocks_that_reach_tile
 
+                    #update probabilty points for block based on number of blocks that can reach tile
                     for block_id in blocks_that_reach_tile:
                         if (self.is_start_area_active(block_id) and
                                 self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
