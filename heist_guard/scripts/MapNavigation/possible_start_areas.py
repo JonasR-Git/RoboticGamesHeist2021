@@ -7,7 +7,9 @@ from geometry_msgs.msg import PoseStamped
 from time import perf_counter
 import random
 
-MAX_SPEED = 0.4
+from roswtf.graph import probe_all_services
+
+MAX_SPEED = 0.2
 
 
 class StartAreasModel:
@@ -45,6 +47,7 @@ class StartAreasModel:
         # each entry i stores a grid containing the distance from every node to the starting area i
         self.start_area_distances = []
         self.start_area_probabilities = []
+        self.start_area_mean_probabilities = []
         self.most_likely_start_area_number = 0
 
         self.probability_update_iteration = 1
@@ -146,11 +149,8 @@ class StartAreasModel:
     def is_tile_in_bounds(self, coord):
         return 0 <= coord[0] < self.map_width and 0 <= coord[1] < self.map_height
 
-    def is_start_area_active(self, block_id):
-        return self.start_area_probabilities[block_id] >= self.threshold_to_reject_start_area
-
     def position_to_index(self, x, y):
-        x, y = int(round(x / self.map_resolution)), int(round(y / self.map_resolution))
+        x, y = int(math.floor(x / self.map_resolution)), int(math.floor(y / self.map_resolution))
         return x, y
 
     def get_2d_position_from_odom(self, odom):
@@ -214,9 +214,11 @@ class StartAreasModel:
 
     def calculate_start_area_probabilities(self):
         self.start_area_probabilities = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
+        self.start_area_mean_probabilities = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
         best_so_far = 0
         for idx, number_of_nodes in enumerate(self.nodes_in_block):
             self.start_area_probabilities[idx] = number_of_nodes / self.total_reachable_tiles_in_start_area
+            self.start_area_mean_probabilities[idx] = self.start_area_probabilities[idx]
             if self.start_area_probabilities[idx] > best_so_far:
                 best_so_far = self.start_area_probabilities[idx]
                 self.most_likely_start_area_number = idx
@@ -224,14 +226,14 @@ class StartAreasModel:
     def update_area_probabilities_based_on_mean(self, new_area_probabilities):
         best_so_far = 0
         for idx, probability in enumerate(new_area_probabilities):
-            diff = probability - self.start_area_probabilities[idx]
-            self.start_area_probabilities[idx] = self.start_area_probabilities[
+            diff = probability - self.start_area_mean_probabilities[idx]
+            self.start_area_mean_probabilities[idx] = self.start_area_mean_probabilities[
                                                      idx] + diff / self.probability_update_iteration
-            if self.start_area_probabilities[idx] > best_so_far:
-                best_so_far = self.start_area_probabilities[idx]
+            if self.start_area_mean_probabilities[idx] > best_so_far:
+                best_so_far = self.start_area_mean_probabilities[idx]
                 self.most_likely_start_area_number = idx
 
-        self.probability_update_iteration += 1
+
 
     def update_area_probabilities_multiply_normalized(self, new_area_probabilities):
         new_total_probabilities = 0
@@ -246,7 +248,7 @@ class StartAreasModel:
                 if self.start_area_probabilities[idx] > best_so_far:
                     best_so_far = self.start_area_probabilities[idx]
                     self.most_likely_start_area_number = idx
-        self.probability_update_iteration += 1
+
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
         adversary_coordinate = self.find_closest_valid_point(self.position_to_tuple(
@@ -257,6 +259,8 @@ class StartAreasModel:
                                                                             adversary_coordinate)
 
     def find_halfway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
+        if self.probability_update_iteration >= 10:
+            breakpoint()
         short_distance = math.inf
         while self.start_area_distances[start_area_index][coord] > distance / 2:
             for (neighbour, _) in self.get_adjacent_fields(coord):
@@ -276,12 +280,8 @@ class StartAreasModel:
         visited = np.full((self.map_width, self.map_height), False, dtype=bool)
         while open_nodes:
             top = open_nodes.pop(0)
-            total_prob_to_reach_point = 0
-            for i in range(0, self.disconnected_possible_start_areas):
-                if self.is_tile_in_bounds(top) and self.start_area_distances[i][top] < math.inf and self.is_point_free(top):
-                    total_prob_to_reach_point += self.start_area_probabilities[i]
-                    if total_prob_to_reach_point >= 0.25:
-                        return top
+            if self.is_tile_in_bounds(top) and self.is_point_free(top):
+                return top
 
             for neighbour in self.get_simple_adjacent_fields(top):
                 if self.is_tile_in_bounds(neighbour) and not visited[neighbour]:
@@ -306,8 +306,7 @@ class StartAreasModel:
 
                     # check how many blocks can reach that tile
                     for block_id in range(0, self.disconnected_possible_start_areas):
-                        if (self.is_start_area_active(block_id) and
-                                self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
+                        if self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far:
                             blocks_that_reach_tile.append(block_id)
 
                     number_blocks_that_reach_tile = len(blocks_that_reach_tile)
@@ -315,8 +314,7 @@ class StartAreasModel:
 
                     # update probabilty points for block based on number of blocks that can reach tile
                     for block_id in blocks_that_reach_tile:
-                        if (self.is_start_area_active(block_id) and
-                                self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
+                        if self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far:
                             probability_points_for_block[
                                 block_id] += self.disconnected_possible_start_areas / number_blocks_that_reach_tile
 
@@ -325,6 +323,8 @@ class StartAreasModel:
             for idx, probability in enumerate(probability_points_for_block):
                 probability_points_for_block[idx] = probability / total_probability_points
             self.update_area_probabilities_multiply_normalized(probability_points_for_block)
+            self.update_area_probabilities_based_on_mean(probability_points_for_block)
+            self.probability_update_iteration += 1
 
     def build_start_map(self, start_x, start_y):
         start_map = np.full((self.map_width, self.map_height), -1, dtype=int)
