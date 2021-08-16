@@ -273,9 +273,9 @@ class StartAreasModel:
 
     def find_closest_valid_point(self, coord):
         open_nodes = [(coord[0], coord[1])]
+        visited = np.full((self.map_width, self.map_height), False, dtype=bool)
         while open_nodes:
             top = open_nodes.pop(0)
-
             total_prob_to_reach_point = 0
             for i in range(0, self.disconnected_possible_start_areas):
                 if self.is_tile_in_bounds(top) and self.start_area_distances[i][top] < math.inf and self.is_point_free(top):
@@ -284,7 +284,8 @@ class StartAreasModel:
                         return top
 
             for neighbour in self.get_simple_adjacent_fields(top):
-                if self.is_tile_in_bounds(neighbour):
+                if self.is_tile_in_bounds(neighbour) and not visited[neighbour]:
+                    visited[neighbour] = True
                     open_nodes.append(neighbour)
 
         return coord
