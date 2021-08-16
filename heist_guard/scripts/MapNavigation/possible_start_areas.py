@@ -5,6 +5,7 @@ import rospy
 from nav_msgs.msg import OccupancyGrid, Odometry
 from geometry_msgs.msg import PoseStamped
 from time import perf_counter
+import random
 
 MAX_SPEED = 0.4
 
@@ -108,9 +109,9 @@ class StartAreasModel:
             """
 
     def listener_callback(self, message):
-        self.enemy_approximate_positions.append(message)  # message is a tuple?
+        self.enemy_approximate_positions.append(message)
         if self.has_map:
-            # the first time a position is recieved
+            # the first time a position is received
             if self.initial:
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -140,9 +141,12 @@ class StartAreasModel:
         return x, y
 
     def get_2d_position_from_odom(self, odom):
+        alpha = 2 * math.pi * random.random()
+        x = math.cos(alpha)
+        y = math.sin(alpha)
         return (
-            odom.pose.pose.position.x + self.map_width_in_meter / 2,
-            odom.pose.pose.position.y + self.map_height_in_meter / 2)
+            x + odom.pose.pose.position.x + self.map_width_in_meter / 2,
+            y + odom.pose.pose.position.y + self.map_height_in_meter / 2)
 
     def coord_2_d_to_1_d(self, coord):
         return int(coord[1] * self.map_width + coord[0])
