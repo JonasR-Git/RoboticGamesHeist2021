@@ -30,7 +30,7 @@ class StartAreasModel:
         self.sqr_max_noise_tile_error = 0
         self.noise_diameter = 0
         # a tile is considered free if it is under this value
-        self.is_reachable_threshold = 15
+        self.is_reachable_threshold = 5
         self.sqrtOf2 = math.sqrt(2)
 
         # if a start area has the likelihood of under this value it is not considered an option
@@ -109,27 +109,26 @@ class StartAreasModel:
             """
 
     def listener_callback(self, message):
-        alpha = 2 * math.pi * random.random()
-        x = math.cos(alpha)
-        y = math.sin(alpha)
-        message.pose.pose.position.x += x
-        message.pose.pose.position.x += y
-
-        self.enemy_approximate_positions.append(message)
         if self.has_map:
             # the first time a position is received
             if self.initial:
+                alpha = 2 * math.pi * random.random()
+                x = math.cos(alpha)
+                y = math.sin(alpha)
+                message.pose.pose.position.x += x
+                message.pose.pose.position.x += y
+                self.enemy_approximate_positions.append(message)
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
                 self.search_separated_possible_start_areas(self.enemy_approximate_positions[0])
                 self.calculate_start_area_probabilities()
                 self.build_start_area_distances()
             else:
-                if perf_counter() - self.last_sent < 5:
+                if perf_counter() - self.last_sent < 2:
                     return
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
-
+                print('...')
             halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
                 self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
@@ -230,14 +229,15 @@ class StartAreasModel:
         new_total_probabilities = 0
         best_so_far = 0
         for idx, (probability, start_prob) in enumerate(zip(new_area_probabilities, self.start_area_probabilities)):
-            self.start_area_probabilities[idx] = (probability * start_prob)**(1/self.probability_update_iteration)
+            self.start_area_probabilities[idx] = probability * start_prob
             new_total_probabilities += self.start_area_probabilities[idx]
 
         for idx, probability in enumerate(self.start_area_probabilities):
-            self.start_area_probabilities[idx] = probability / new_total_probabilities
-            if self.start_area_probabilities[idx] > best_so_far:
-                best_so_far = self.start_area_probabilities[idx]
-                self.most_likely_start_area_number = idx
+            if probability > 0:
+                self.start_area_probabilities[idx] = probability / new_total_probabilities
+                if self.start_area_probabilities[idx] > best_so_far:
+                    best_so_far = self.start_area_probabilities[idx]
+                    self.most_likely_start_area_number = idx
         self.probability_update_iteration += 1
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
