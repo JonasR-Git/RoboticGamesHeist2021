@@ -257,6 +257,11 @@ class StartAreasModel:
                     coord = neighbour
         return coord
 
+    def is_point_free(self, coord):
+        is_free = self.is_coord_considered_free(coord)
+        for n, _ in self.get_adjacent_fields(coord):
+            is_free = is_free and self.is_coord_considered_free(n)
+
     def find_closest_valid_point(self, coord):
         open_nodes = [(coord[0], coord[1])]
         while open_nodes:
@@ -264,7 +269,7 @@ class StartAreasModel:
 
             total_prob_to_reach_point = 0
             for i in range(0, self.disconnected_possible_start_areas):
-                if self.start_area_distances[i][top] < math.inf:
+                if self.start_area_distances[i][top] < math.inf and self.is_point_free(top):
                     total_prob_to_reach_point += self.start_area_probabilities[i]
                     if total_prob_to_reach_point >= 0.25:
                         return top
