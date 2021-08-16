@@ -254,6 +254,24 @@ class StartAreasModel:
                     coord = neighbour
         return coord
 
+    def find_closest_valid_point(self, coord):
+        open_nodes = [(coord[0], coord[1])]
+        while open_nodes:
+            top = open_nodes.pop(0)
+
+            total_prob_to_reach_point = 0
+            for i in range(0, self.disconnected_possible_start_areas):
+                if self.start_area_distances[i][top] < math.inf:
+                    total_prob_to_reach_point += self.start_area_probabilities[i]
+                    if total_prob_to_reach_point >= 0.25:
+                        return top
+
+            for neighbour in self.get_simple_adjacent_fields(top):
+                if self.is_tile_in_bounds(neighbour):
+                    open_nodes.append(neighbour)
+
+        return coord
+
     def probability_of_point_from_start_block_after_seconds(self, adversary_odometry, max_distance_traveled_so_far):
         start_x, start_y = self.get_2d_position_from_odom(adversary_odometry)
         start_index = self.position_to_index(start_x, start_y)
