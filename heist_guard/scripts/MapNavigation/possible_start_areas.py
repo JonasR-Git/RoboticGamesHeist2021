@@ -109,6 +109,12 @@ class StartAreasModel:
             """
 
     def listener_callback(self, message):
+        alpha = 2 * math.pi * random.random()
+        x = math.cos(alpha)
+        y = math.sin(alpha)
+        message.pose.pose.position.x += x
+        message.pose.pose.position.x += y
+
         self.enemy_approximate_positions.append(message)
         if self.has_map:
             # the first time a position is received
@@ -141,12 +147,9 @@ class StartAreasModel:
         return x, y
 
     def get_2d_position_from_odom(self, odom):
-        alpha = 2 * math.pi * random.random()
-        x = math.cos(alpha)
-        y = math.sin(alpha)
         return (
-            x + odom.pose.pose.position.x + self.map_width_in_meter / 2,
-            y + odom.pose.pose.position.y + self.map_height_in_meter / 2)
+            odom.pose.pose.position.x + self.map_width_in_meter / 2,
+            odom.pose.pose.position.y + self.map_height_in_meter / 2)
 
     def coord_2_d_to_1_d(self, coord):
         return int(coord[1] * self.map_width + coord[0])
@@ -238,8 +241,8 @@ class StartAreasModel:
         self.probability_update_iteration += 1
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
-        adversary_coordinate = self.position_to_tuple(
-            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1]))
+        adversary_coordinate = self.find_closest_valid_point(self.position_to_tuple(
+            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1])))
         # start area distances is a list of numpy arrays
         adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
         return self.find_halfway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance,
