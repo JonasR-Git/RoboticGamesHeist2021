@@ -23,12 +23,12 @@ class StartAreasModel:
         self.map_width_in_meter = 0
         self.map_height_in_meter = 0
 
-        #noise error data and config
+        # noise error data and config
         self.max_error_distance = 1
         self.max_noise_tile_error = 0
         self.sqr_max_noise_tile_error = 0
         self.noise_diameter = 0
-        #a tile is considered free if it is under this value
+        # a tile is considered free if it is under this value
         self.is_reachable_threshold = 15
         self.sqrtOf2 = math.sqrt(2)
 
@@ -74,8 +74,8 @@ class StartAreasModel:
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution)
             self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
-            
-            #offset occupancy grid so its map aligns with the real world map
+
+            # offset occupancy grid so its map aligns with the real world map
             real_world_pos_of_zero_zero = (message.info.origin.position.x, message.info.origin.position.y)
 
             correct_world_x_pos_half_half = 0
@@ -87,20 +87,21 @@ class StartAreasModel:
             x_diff = actual_world_pos_of_half_half_x - correct_world_x_pos_half_half
             y_diff = actual_world_pos_of_half_half_y - correct_world_y_pos_half_half
 
-            tile_x_movement = x_diff / self.map_resolution
-            tile_y_movement = y_diff / self.map_resolution
+            tile_x_movement = int(round(x_diff / self.map_resolution))
+            tile_y_movement = int(round(y_diff / self.map_resolution))
 
-            if tile_x_movement > 0 and tile_y_movement > 0:
-                #shift occupancy grid based on the origin of the 
-                for x in range(0, self.map_width - max(0,tile_x_movement)):
-                    for y in range(0, self.map_height - min(0,tile_x_movement)):
+            if tile_x_movement != 0 or tile_y_movement != 0:
+                # shift occupancy grid based on the origin of the
+                for x in range(0, self.map_width - max(0, tile_x_movement)):
+                    for y in range(0, self.map_height - max(0, tile_x_movement)):
                         index = self.coord_2_d_to_1_d((x, y))
                         index_two = self.coord_2_d_to_1_d(
                             (x + tile_x_movement, y + tile_y_movement))
-                        self.occupancy_grid[index_two] = message.data[index]
-                
+                        value = message.data[index]
+                        self.occupancy_grid[index_two] = value
+
             self.has_map = True
-            
+
             """
             self.tester(0, 0)
             self.tester(-2, 3.0)
@@ -109,7 +110,7 @@ class StartAreasModel:
     def listener_callback(self, message):
         self.enemy_approximate_positions.append(message)  # message is a tuple?
         if self.has_map:
-            #the first time a position is recieved 
+            # the first time a position is recieved
             if self.initial:
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -117,11 +118,11 @@ class StartAreasModel:
                 self.calculate_start_area_probabilities()
                 self.build_start_area_distances()
             else:
+                if perf_counter() - self.last_sent < 5:
+                    return
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
 
-            if perf_counter() - self.last_sent < 5:
-                return
             halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
                 self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
@@ -187,14 +188,14 @@ class StartAreasModel:
 
     def get_adjacent_fields(self, coord):
         return [
-            ((coord[0] - 1, coord[1] - 1), self.sqrtOf2),
-            ((coord[0] - 1, coord[1]), 1),
-            ((coord[0] - 1, coord[1] + 1), self.sqrtOf2),
-            ((coord[0], coord[1] - 1), 1),
-            ((coord[0], coord[1] + 1), 1),
-            ((coord[0] + 1, coord[1] - 1), self.sqrtOf2),
-            ((coord[0] + 1, coord[1]), 1),
-            ((coord[0] + 1, coord[1] + 1), self.sqrtOf2)
+            ((coord[0] - 1, coord[1] - 1), self.sqrtOf2 * self.map_resolution),
+            ((coord[0] - 1, coord[1]), 1 * self.map_resolution),
+            ((coord[0] - 1, coord[1] + 1), self.sqrtOf2 * self.map_resolution),
+            ((coord[0], coord[1] - 1), 1 * self.map_resolution),
+            ((coord[0], coord[1] + 1), 1 * self.map_resolution),
+            ((coord[0] + 1, coord[1] - 1), self.sqrtOf2 * self.map_resolution),
+            ((coord[0] + 1, coord[1]), 1 * self.map_resolution),
+            ((coord[0] + 1, coord[1] + 1), self.sqrtOf2 * self.map_resolution)
         ]
 
     def calculate_start_area_probabilities(self):
@@ -222,7 +223,7 @@ class StartAreasModel:
         new_total_probabilities = 0
         best_so_far = 0
         for idx, (probability, start_prob) in enumerate(zip(new_area_probabilities, self.start_area_probabilities)):
-            self.start_area_probabilities[idx] = probability * start_prob
+            self.start_area_probabilities[idx] = (probability * start_prob)**(1/self.probability_update_iteration)
             new_total_probabilities += self.start_area_probabilities[idx]
 
         for idx, probability in enumerate(self.start_area_probabilities):
@@ -230,6 +231,7 @@ class StartAreasModel:
             if self.start_area_probabilities[idx] > best_so_far:
                 best_so_far = self.start_area_probabilities[idx]
                 self.most_likely_start_area_number = idx
+        self.probability_update_iteration += 1
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
         adversary_coordinate = self.position_to_tuple(
@@ -262,7 +264,7 @@ class StartAreasModel:
                         and self.is_coord_considered_free(coord)):
                     blocks_that_reach_tile = []
 
-                    #check how many blocks can reach that tile
+                    # check how many blocks can reach that tile
                     for block_id in range(0, self.disconnected_possible_start_areas):
                         if (self.is_start_area_active(block_id) and
                                 self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
@@ -271,7 +273,7 @@ class StartAreasModel:
                     number_blocks_that_reach_tile = len(blocks_that_reach_tile)
                     total_points_reachable += number_blocks_that_reach_tile
 
-                    #update probabilty points for block based on number of blocks that can reach tile
+                    # update probabilty points for block based on number of blocks that can reach tile
                     for block_id in blocks_that_reach_tile:
                         if (self.is_start_area_active(block_id) and
                                 self.start_area_distances[block_id][coord] <= max_distance_traveled_so_far):
