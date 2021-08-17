@@ -27,7 +27,7 @@ class StartAreasModel:
         self.map_height_in_meter = 0
 
         # noise error data and config
-        self.max_error_distance = 1.5
+        self.max_error_distance = 0.5
         self.max_noise_tile_error = 0
         self.noise_diameter = 0
         # a tile is considered free if it is under this value
@@ -148,8 +148,8 @@ class StartAreasModel:
                 alpha = 2 * math.pi * random.random()
                 x = math.cos(alpha)
                 y = math.sin(alpha)
-                message.pose.pose.position.x += x
-                message.pose.pose.position.x += y
+                #message.pose.pose.position.x += x
+                #message.pose.pose.position.x += y
                 self.enemy_approximate_positions.append(message)
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -163,8 +163,9 @@ class StartAreasModel:
                 alpha = 2 * math.pi * random.random()
                 x = math.cos(alpha)
                 y = math.sin(alpha)
-                message.pose.pose.position.x += x
-                message.pose.pose.position.x += y
+                #message.pose.pose.position.x += x
+                #message.pose.pose.position.x += y
+                self.enemy_approximate_positions.append(message)
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
                 print('2')
@@ -289,15 +290,13 @@ class StartAreasModel:
                     best_so_far = self.start_area_probabilities[idx]
                     self.most_likely_start_area_number = idx
 
-
     def get_next_guard_position_when_guarding_area(self, start_area_index):
-        adversary_coordinate = self.position_to_tuple(
-            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1]))
+        adversary_coordinate = self.find_closest_valid_point(self.position_to_tuple(
+            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1])))
         # start area distances is a list of numpy arrays
         adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
         target_point = self.find_halfway_distance_position_from_coord_to_start_area(
             start_area_index, adversary_distance,adversary_coordinate)
-        target_point = self.find_closest_valid_point(target_point)
         target_point = self.push_point_further_from_wall(target_point, start_area_index)
         return target_point
 
@@ -316,7 +315,7 @@ class StartAreasModel:
                 if self.wall_distance_grid[neighbour] > current_distance_from_wall:
                     wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
                     lost_distance = dis + self.start_area_distances[target_start_area][neighbour] - current_distance_from_start
-                    if distance_lost + (lost_distance / wall_distance_diff) > max_extra_distance:
+                    if distance_lost + lost_distance <= max_extra_distance:
                         coord = neighbour
                         distance_lost += lost_distance
                         current_distance_from_wall = self.wall_distance_grid[neighbour]
@@ -327,12 +326,13 @@ class StartAreasModel:
                     if self.wall_distance_grid[neighbour] == current_distance_from_wall and neighbour != last_field:
                         lost_distance = dis + self.start_area_distances[target_start_area][
                             neighbour] - current_distance_from_start
-                        if distance_lost + lost_distance > max_extra_distance:
+                        if distance_lost + lost_distance <= max_extra_distance:
                             coord = neighbour
                             distance_lost += lost_distance
                             current_distance_from_wall = self.wall_distance_grid[neighbour]
                             found_better = True
                             current_distance_from_start = self.start_area_distances[target_start_area][neighbour]
+                            break
                 if not found_better:
                     break
 
@@ -342,7 +342,7 @@ class StartAreasModel:
 
     def find_halfway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
         if self.probability_update_iteration >= 10:
-            breakpoint()
+            pass
         shortest_distance = math.inf
         furthest_distance_from_wall = 0
         while self.start_area_distances[start_area_index][coord] > distance / 2:
