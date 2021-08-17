@@ -154,7 +154,7 @@ class StartAreasModel:
                 self.calculate_start_area_probabilities()
                 self.build_start_area_distances()
             else:
-                if perf_counter() - self.last_sent < 2:
+                if perf_counter() - self.last_sent < 1:
                     return
                 alpha = 2 * math.pi * random.random()
                 x = math.cos(alpha)
