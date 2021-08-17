@@ -34,6 +34,9 @@ class StartAreasModel:
         self.is_reachable_threshold = 5
         self.sqrtOf2 = math.sqrt(2)
 
+        self.roboter_size = 0.1
+        self.roboter_half_tile_occupation = 0
+
         # if a start area has the likelihood of under this value it is not considered an option
         self.threshold_to_reject_start_area = 0.0025
 
@@ -45,6 +48,7 @@ class StartAreasModel:
         # list of a 2d array
         # each entry i stores a grid containing the distance from every node to the starting area i
         self.start_area_distances = []
+        self.wall_distance_grid = []
         self.start_area_probabilities = []
         self.start_area_mean_probabilities = []
         self.most_likely_start_area_number = 0
@@ -77,6 +81,7 @@ class StartAreasModel:
             self.map_height_in_meter = self.map_height * self.map_resolution
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution) + 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
+            self.roboter_half_tile_occupation = int(math.ceil(self.roboter_size / 2 / self.map_resolution))
 
             # offset occupancy grid so its map aligns with the real world map
             real_world_pos_of_zero_zero = (message.info.origin.position.x, message.info.origin.position.y)
@@ -93,15 +98,34 @@ class StartAreasModel:
             tile_x_movement = int(round(x_diff / self.map_resolution))
             tile_y_movement = int(round(y_diff / self.map_resolution))
 
-            if tile_x_movement != 0 or tile_y_movement != 0:
-                # shift occupancy grid based on the origin of the
-                for x in range(0, self.map_width - max(0, tile_x_movement)):
-                    for y in range(0, self.map_height - max(0, tile_x_movement)):
-                        index = self.coord_2_d_to_1_d((x, y))
-                        index_two = self.coord_2_d_to_1_d(
-                            (x + tile_x_movement, y + tile_y_movement))
-                        value = message.data[index]
-                        self.occupancy_grid[index_two] = value
+            wall_tiles_open_nodes = []
+
+            # shift occupancy grid based on the origin of the
+            for x in range(0, self.map_width - max(0, tile_x_movement)):
+                for y in range(0, self.map_height - max(0, tile_x_movement)):
+                    index = self.coord_2_d_to_1_d((x, y))
+                    index_two = self.coord_2_d_to_1_d(
+                        (x + tile_x_movement, y + tile_y_movement))
+                    value = message.data[index]
+                    self.occupancy_grid[index_two] = value
+                    if not self.is_coord_considered_free((x,y)):
+                        wall_tiles.append((x,y))
+
+            self.wall_distance_grid = np.full((self.map_width, self.map_height), -1, dtype=float)
+
+            #build wall distance grid
+            while wall_tiles_open_nodes:
+                top = wall_tiles_open_nodes.pop(0)
+                if self.wall_distance_grid[top] == -1:
+                    self.wall_distance_grid[top] = 0
+                for (p, dis) in self.get_adjacent_fields(top):
+                    if self.is_tile_in_bounds(p):
+                        if self.wall_distance_grid[p] == -1:
+                            wall_tiles_open_nodes.append(p)
+                        distance = self.wall_distance_grid[top] + dis
+                        if distance < distances_to_block[p]:
+                            distances_to_block[p] = distance
+            self.start_area_distances.append(distances_to_block)
 
             self.has_map = True
 
@@ -268,6 +292,7 @@ class StartAreasModel:
         return coord
 
     def is_point_free(self, coord):
+        return self.is_coord_considered_free(coord) and self.wall_distance_grid[coord] > self.roboter_half_tile_occupation
         is_free = self.is_coord_considered_free(coord)
         for n, _ in self.get_adjacent_fields(coord):
             is_free = is_free and self.is_coord_considered_free(n)
