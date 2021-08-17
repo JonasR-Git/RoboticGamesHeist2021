@@ -365,6 +365,9 @@ class StartAreasModel:
     def clamp_in_map(self, coord):
         return min(self.map_width - 1, max(0, coord[0])), min(self.map_height - 1, max(0, coord[1]))
 
+    def clamp_in_map(self, coord):
+        return (min(self.map_width - 1, max(0, coord[0])), min(self.map_height - 1, max(0, coord[1])))
+
     def find_closest_valid_point(self, coord):
         coord = self.clamp_in_map(coord)
         open_nodes = [(coord[0], coord[1])]
@@ -427,10 +430,13 @@ class StartAreasModel:
         return start_map
 
     def search_separated_possible_start_areas(self, adversary_odometry):
-        (start_x, start_y) = self.get_2d_position_from_odom(adversary_odometry)
+        self.node_block_id = np.full((self.map_width, self.map_height), -1, dtype=int)
+        search_separated_possible_start_areas_at(self.get_2d_position_from_odom(adversary_odometry), True)
+
+    def search_separated_possible_start_areas_at(self, pos, repeat):
+        (start_x, start_y) = pos
         start_map = self.build_start_map(start_x, start_y)
         start_index = self.position_to_index(start_x, start_y)
-        self.node_block_id = np.full((self.map_width, self.map_height), -1, dtype=int)
         block_count = 0
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
@@ -442,6 +448,20 @@ class StartAreasModel:
                         block_count += 1
 
         self.disconnected_possible_start_areas = block_count
+
+        #if due to high noise in startposition no start area was found, try again with closest valid point 
+        if self.disconnected_possible_start_areas == 0:
+            if repeat:
+                valid_start_point = self.find_closest_valid_point(start_index)
+                self.search_separated_possible_start_areas_at(valid_start_point, False)
+            else:
+                if self.disconnected_possible_start_areas == 0:
+                    self.disconnected_possible_start_areas = 1
+                    self.total_reachable_tiles_in_start_area = 1
+                    start_point = self.find_closest_valid_point(start_index)
+                    self.node_block_id[start_point] = 0
+                    self.nodes_in_block.append(1)
+            
 
     # starts a bfs from a start point and marks all valid fields with the given block id.
     # global_offset is the offset to add to the current coordinate to get the global coordinate
