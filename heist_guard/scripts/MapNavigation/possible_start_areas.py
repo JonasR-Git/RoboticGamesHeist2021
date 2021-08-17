@@ -27,9 +27,8 @@ class StartAreasModel:
         self.map_height_in_meter = 0
 
         # noise error data and config
-        self.max_error_distance = 1
+        self.max_error_distance = 1.5
         self.max_noise_tile_error = 0
-        self.sqr_max_noise_tile_error = 0
         self.noise_diameter = 0
         # a tile is considered free if it is under this value
         self.is_reachable_threshold = 5
@@ -77,7 +76,6 @@ class StartAreasModel:
             self.map_width_in_meter = self.map_width * self.map_resolution
             self.map_height_in_meter = self.map_height * self.map_resolution
             self.max_noise_tile_error = math.ceil(self.max_error_distance / self.map_resolution) + 2
-            self.sqr_max_noise_tile_error = self.max_noise_tile_error ** 2
             self.noise_diameter = self.max_noise_tile_error * 2 + 1
 
             # offset occupancy grid so its map aligns with the real world map
@@ -299,9 +297,7 @@ class StartAreasModel:
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1, 1):
                 coord = (start_index[0] + x, start_index[1] + y)
-                if ((x * x + y * y) < self.sqr_max_noise_tile_error
-                        and self.is_tile_in_bounds(coord)
-                        and self.is_coord_considered_free(coord)):
+                if self.is_tile_in_bounds(coord) and self.is_coord_considered_free(coord):
                     blocks_that_reach_tile = []
 
                     # check how many blocks can reach that tile
@@ -332,8 +328,7 @@ class StartAreasModel:
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
                 coord = (start_index[0] + x, start_index[1] + y)
-                if ((x * x + y * y) <= self.sqr_max_noise_tile_error
-                        and self.is_tile_in_bounds(coord)):
+                if self.is_tile_in_bounds(coord):
                     start_map[coord] = self.get_grid_value_at_coord(coord)
 
         return start_map
