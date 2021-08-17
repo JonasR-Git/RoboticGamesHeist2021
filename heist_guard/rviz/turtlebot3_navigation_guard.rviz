@@ -4,27 +4,33 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /RobotModel_tb3_01/Links1
+        - /Global Options1
+        - /Status1
+        - /RobotModel1
+        - /RobotModel1/Links1
         - /TF1/Frames1
         - /TF1/Tree1
+        - /LaserScan1
+        - /Planner Plan1
+        - /Global Map1
         - /Global Map1/Costmap1
+        - /Global Map1/Costmap1/Status1
         - /Global Map1/Planner1
+        - /Local Map1
         - /Local Map1/Polygon1
         - /Local Map1/Costmap1
         - /Local Map1/Planner1
-        - /Goal_tb3_01
-        - /Goal_tb3_11
-      Splitter Ratio: 0.5473440885543823
-    Tree Height: 455
+        - /Amcl Particles1
+        - /Goal1
+        - /Path1
+      Splitter Ratio: 0.5
+    Tree Height: 484
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
     Expanded:
       - /2D Pose Estimate1
       - /2D Nav Goal1
-      - /2D Pose Estimate2
-      - /2D Nav Goal2
-      - /2D Nav Goal3
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
   - Class: rviz/Views
@@ -36,7 +42,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan_tb3_1
+    SyncSource: LaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -72,7 +78,7 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-      Name: RobotModel_tb3_0
+      Name: RobotModel
       Robot Description: guard/robot_description
       TF Prefix: guard
       Update Interval: 0
@@ -88,7 +94,7 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-      Name: RobotModel_tb3_1
+      Name: RobotModel
       Robot Description: evader/robot_description
       TF Prefix: evader
       Update Interval: 0
@@ -126,7 +132,7 @@ Visualization Manager:
       Max Intensity: 13069
       Min Color: 0; 0; 0
       Min Intensity: 28
-      Name: LaserScan_tb3_0
+      Name: LaserScan
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -282,14 +288,6 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Class: rviz/Polygon
-      Color: 25; 255; 0
-      Enabled: true
-      Name: Polygon
-      Topic: evader/move_base/local_costmap/footprint
-      Unreliable: false
-      Value: true
-    - Alpha: 1
       Axes Length: 1
       Axes Radius: 0.10000000149011612
       Class: rviz/Pose
@@ -297,11 +295,11 @@ Visualization Manager:
       Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
-      Name: Goal_tb3_0
-      Shaft Length: 1
+      Name: Goal
+      Shaft Length: 0.5
       Shaft Radius: 0.05000000074505806
       Shape: Arrow
-      Topic: /evader/move_base_simple/goal
+      Topic: /guard/move_base_simple/goal
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -322,12 +320,12 @@ Visualization Manager:
       Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: LaserScan_tb3_1
+      Name: LaserScan
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.029999999329447746
+      Size (m): 0.009999999776482582
       Style: Flat Squares
       Topic: /evader/scan
       Unreliable: false
@@ -335,72 +333,11 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz/Pose
-      Color: 255; 25; 0
+      Class: rviz/Polygon
+      Color: 25; 255; 0
       Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: Goal_tb3_1
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Arrow
-      Topic: /evader/move_base_simple/goal
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Arrow Length: 0.05000000074505806
-      Axes Length: 0.30000001192092896
-      Axes Radius: 0.009999999776482582
-      Class: rviz/PoseArray
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.07000000029802322
-      Head Radius: 0.029999999329447746
-      Name: PoseArray
-      Shaft Length: 0.23000000417232513
-      Shaft Radius: 0.009999999776482582
-      Shape: Arrow (Flat)
-      Topic: /evader/particlecloud
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz/Pose
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: Target_goal
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Arrow
-      Topic: /move_base_simple/goal
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Buffer Length: 1
-      Class: rviz/Path
-      Color: 0; 0; 0
-      Enabled: true
-      Head Diameter: 0.30000001192092896
-      Head Length: 0.20000000298023224
-      Length: 0.30000001192092896
-      Line Style: Lines
-      Line Width: 0.029999999329447746
-      Name: Path_tb3_1
-      Offset:
-        X: 0
-        Y: 0
-        Z: 0
-      Pose Color: 255; 85; 255
-      Pose Style: None
-      Radius: 0.029999999329447746
-      Shaft Diameter: 0.10000000149011612
-      Shaft Length: 0.10000000149011612
-      Topic: /evader/move_base/NavfnROS/plan
+      Name: Polygon
+      Topic: evader/move_base/local_costmap/footprint
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -440,25 +377,16 @@ Visualization Manager:
     - Class: rviz/Select
     - Class: rviz/SetInitialPose
       Theta std deviation: 0.2617993950843811
-      Topic: /guard/initialpose
+      Topic: /initialpose
       X std deviation: 0.5
       Y std deviation: 0.5
     - Class: rviz/SetGoal
       Topic: /guard/move_base_simple/goal
-    - Class: rviz/SetInitialPose
-      Theta std deviation: 0.2617993950843811
-      Topic: /evader/initialpose
-      X std deviation: 0.5
-      Y std deviation: 0.5
-    - Class: rviz/SetGoal
-      Topic: /evader/move_base_simple/goal
-    - Class: rviz/SetGoal
-      Topic: /move_base_simple/goal
     - Class: rviz/Measure
   Value: true
   Views:
     Current:
-      Angle: -7.7658185958862305
+      Angle: -8.975820541381836
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -468,11 +396,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 99.82530975341797
+      Scale: 74.2137680053711
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: 0.10854511708021164
-      Y: -0.2040543109178543
+      X: -0.6697334051132202
+      Y: 1.1047075986862183
     Saved: ~
 Window Geometry:
   Displays:
@@ -482,7 +410,7 @@ Window Geometry:
   Hide Right Dock: true
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001b30000026ffc0200000006fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afc0000003d0000026f000000e60100001cfa000000010100000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000000ffffffff0000009d00fffffffb000000100044006900730070006c00610079007301000000000000016a0000015600fffffffb0000000a0049006d0061006700650000000318000000cc0000001600fffffffb0000000a0049006d0061006700650000000330000000ce0000000000000000000000010000010f000003a0fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730000000043000003a0000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004a00000003efc0100000002fb0000000800540069006d00650000000000000004a0000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000003620000026f00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000016a0000026ffc0200000007fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000026f000000c900fffffffb0000000a0049006d0061006700650000000317000000cc0000001600fffffffb0000000a0049006d0061006700650000000330000000ce0000000000000000000000010000010f000003a0fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730000000043000003a0000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004a00000003efc0100000002fb0000000800540069006d00650000000000000004a0000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000003ab0000026f00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:

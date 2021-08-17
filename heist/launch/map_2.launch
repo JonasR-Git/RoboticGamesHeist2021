@@ -71,10 +71,21 @@
     <node name="evader_perception" type="perception.py" pkg="heist" args="/guard/odom /evader/perception_of_guard 1.0 1.0" />
   </group>
 
-
   <node name="map_2_setup" type="map_2_setup.py" pkg="heist"  />
   <node name="heist_tracker" type="heist_tracker.py" pkg="heist"  /> 
   <node name="heist_client" type="heist_client.py" pkg="heist"  />
   <node name="start_area" type="possible_start_areas.py" pkg="heist_guard" />
-  
+
+  <include file="$(find heist_guard)/launch/guard_navigation.launch">
+    <arg name="model" value="$(arg model)"/>
+    <arg name="map_file" value="$(find heist_guard)/maps/map_2/map_2.yaml" />
+    <arg name="open_rviz" value="true"/>
+    <arg name="move_forward_only" value="false"/>
+
+    <arg name="first_tb3" value="$(arg first_tb3)"/>
+    <arg name="first_tb3_x_pos" value="$(arg first_tb3_x_pos"/>
+    <arg name="first_tb3_y_pos" value="$(arg first_tb3_y_pos)"/>
+    <arg name="first_tb3_z_pos" value="$(arg first_tb3_z_pos)"/>
+    <arg name="first_tb3_yaw" value="$(arg first_tb3_yaw)"/>
+  </include>
 </launch>
