@@ -72,7 +72,6 @@ class StartAreasModel:
 
     def map_callback(self, message):
         if not self.has_map:
-            print('map')
             self.occupancy_grid = [x for x in message.data]
             self.map_width = message.info.width
             self.map_height = message.info.height
@@ -100,7 +99,6 @@ class StartAreasModel:
 
             wall_tiles_open_nodes = []
 
-
             if tile_x_movement != 0 or tile_y_movement != 0:
                 # shift occupancy grid based on the origin of the
                 for x in range(0, self.map_width - max(0, tile_x_movement)):
@@ -119,7 +117,7 @@ class StartAreasModel:
                         wall_tiles_open_nodes.append((x, y))
                         self.wall_distance_grid[(x, y)] = 0
 
-            #build wall distance grid
+            # build wall distance grid
             while wall_tiles_open_nodes:
                 top = wall_tiles_open_nodes.pop(0)
                 for (p, dis) in self.get_adjacent_fields(top):
@@ -144,12 +142,11 @@ class StartAreasModel:
         if self.has_map:
             # the first time a position is received
             if self.initial:
-                print('0')
                 alpha = 2 * math.pi * random.random()
                 x = math.cos(alpha)
                 y = math.sin(alpha)
-                #message.pose.pose.position.x += x
-                #message.pose.pose.position.x += y
+                # message.pose.pose.position.x += x
+                # message.pose.pose.position.x += y
                 self.enemy_approximate_positions.append(message)
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -159,16 +156,14 @@ class StartAreasModel:
             else:
                 if perf_counter() - self.last_sent < 2:
                     return
-                print('1')
                 alpha = 2 * math.pi * random.random()
                 x = math.cos(alpha)
                 y = math.sin(alpha)
-                #message.pose.pose.position.x += x
-                #message.pose.pose.position.x += y
+                # message.pose.pose.position.x += x
+                # message.pose.pose.position.x += y
                 self.enemy_approximate_positions.append(message)
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
-                print('2')
             halfway_intercept_coordination = self.get_next_guard_position_when_guarding_area(
                 self.most_likely_start_area_number)
             halfway_intercept_position = self.index_to_position(halfway_intercept_coordination)
@@ -269,12 +264,10 @@ class StartAreasModel:
         for idx, probability in enumerate(new_area_probabilities):
             diff = probability - self.start_area_mean_probabilities[idx]
             self.start_area_mean_probabilities[idx] = self.start_area_mean_probabilities[
-                                                     idx] + diff / self.probability_update_iteration
+                                                          idx] + diff / self.probability_update_iteration
             if self.start_area_mean_probabilities[idx] > best_so_far:
                 best_so_far = self.start_area_mean_probabilities[idx]
                 self.most_likely_start_area_number = idx
-
-
 
     def update_area_probabilities_multiply_normalized(self, new_area_probabilities):
         new_total_probabilities = 0
@@ -296,25 +289,23 @@ class StartAreasModel:
         # start area distances is a list of numpy arrays
         adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
         target_point = self.find_halfway_distance_position_from_coord_to_start_area(
-            start_area_index, adversary_distance,adversary_coordinate)
+            start_area_index, adversary_distance, adversary_coordinate)
         target_point = self.push_point_further_from_wall(target_point, start_area_index)
         return target_point
 
-    def push_point_further_from_wall(self, coord, target_start_area, max_extra_distance = 0.5):
+    def push_point_further_from_wall(self, coord, target_start_area, max_extra_distance=0.5):
         distance_lost = 0
         current_distance_from_wall = self.wall_distance_grid[coord]
         current_distance_from_start = self.start_area_distances[target_start_area][coord]
-        last_field = coord
         current_field = coord
-        found_better = False
         while distance_lost < max_extra_distance:
             found_better = False
             last_field = current_field
             current_field = coord
             for (neighbour, dis) in self.get_adjacent_fields(coord):
                 if self.wall_distance_grid[neighbour] > current_distance_from_wall:
-                    wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
-                    lost_distance = dis + self.start_area_distances[target_start_area][neighbour] - current_distance_from_start
+                    lost_distance = dis + self.start_area_distances[target_start_area][
+                        neighbour] - current_distance_from_start
                     if distance_lost + lost_distance <= max_extra_distance:
                         coord = neighbour
                         distance_lost += lost_distance
@@ -336,9 +327,7 @@ class StartAreasModel:
                 if not found_better:
                     break
 
-
         return coord
-
 
     def find_halfway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
         if self.probability_update_iteration >= 10:
@@ -351,8 +340,8 @@ class StartAreasModel:
                     shortest_distance = self.start_area_distances[start_area_index][neighbour]
                     coord = neighbour
                     furthest_distance_from_wall = self.wall_distance_grid[neighbour]
-                elif (self.start_area_distances[start_area_index][neighbour] == shortest_distance 
-                        and self.wall_distance_grid[neighbour] > furthest_distance_from_wall):
+                elif (self.start_area_distances[start_area_index][neighbour] == shortest_distance
+                      and self.wall_distance_grid[neighbour] > furthest_distance_from_wall):
                     furthest_distance_from_wall = self.wall_distance_grid[neighbour]
                     shortest_distance = self.start_area_distances[start_area_index][neighbour]
                     coord = neighbour
@@ -360,13 +349,11 @@ class StartAreasModel:
         return coord
 
     def has_point_sufficient_distance_from_wall(self, coord):
-        return self.is_coord_considered_free(coord) and self.wall_distance_grid[coord] > self.roboter_half_tile_occupation * self.map_resolution
+        return self.is_coord_considered_free(coord) and self.wall_distance_grid[
+            coord] > self.roboter_half_tile_occupation * self.map_resolution
 
     def clamp_in_map(self, coord):
         return min(self.map_width - 1, max(0, coord[0])), min(self.map_height - 1, max(0, coord[1]))
-
-    def clamp_in_map(self, coord):
-        return (min(self.map_width - 1, max(0, coord[0])), min(self.map_height - 1, max(0, coord[1])))
 
     def find_closest_valid_point(self, coord):
         coord = self.clamp_in_map(coord)
@@ -431,29 +418,32 @@ class StartAreasModel:
 
     def search_separated_possible_start_areas(self, adversary_odometry):
         self.node_block_id = np.full((self.map_width, self.map_height), -1, dtype=int)
-        search_separated_possible_start_areas_at(self.get_2d_position_from_odom(adversary_odometry), True)
+        self.search_separated_possible_start_areas_at(self.get_2d_position_from_odom(adversary_odometry), True)
+
+    def clamp_position_in_map(self, position):
+        return min(self.map_width_in_meter - self.map_resolution, max(0, position[0])), min(
+            self.map_height_in_meter - self.map_resolution, max(0, position[1]))
 
     def search_separated_possible_start_areas_at(self, pos, repeat):
-        (start_x, start_y) = pos
+        (start_x, start_y) = self.clamp_position_in_map(pos)
         start_map = self.build_start_map(start_x, start_y)
         start_index = self.position_to_index(start_x, start_y)
         block_count = 0
         for x in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
             for y in range(-self.max_noise_tile_error, self.max_noise_tile_error + 1):
                 coord = start_index[0] + x, start_index[1] + y
-                if (self.node_block_id[coord] == -1
-                        and self.is_coord_considered_free_in_map(coord, start_map)
-                        and self.is_tile_in_bounds(coord)):
+                if (self.is_tile_in_bounds(coord) and self.node_block_id[coord] == -1
+                        and self.is_coord_considered_free_in_map(coord, start_map)):
                     if self.bfs(coord[0], coord[1], block_count, start_map):
                         block_count += 1
 
         self.disconnected_possible_start_areas = block_count
 
-        #if due to high noise in startposition no start area was found, try again with closest valid point 
+        # if due to high noise in startposition no start area was found, try again with closest valid point
         if self.disconnected_possible_start_areas == 0:
             if repeat:
                 valid_start_point = self.find_closest_valid_point(start_index)
-                self.search_separated_possible_start_areas_at(valid_start_point, False)
+                self.search_separated_possible_start_areas_at(self.index_to_position(valid_start_point), False)
             else:
                 if self.disconnected_possible_start_areas == 0:
                     self.disconnected_possible_start_areas = 1
@@ -461,7 +451,6 @@ class StartAreasModel:
                     start_point = self.find_closest_valid_point(start_index)
                     self.node_block_id[start_point] = 0
                     self.nodes_in_block.append(1)
-            
 
     # starts a bfs from a start point and marks all valid fields with the given block id.
     # global_offset is the offset to add to the current coordinate to get the global coordinate
