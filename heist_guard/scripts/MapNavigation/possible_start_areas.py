@@ -305,15 +305,18 @@ class StartAreasModel:
         distance_lost = 0
         current_distance_from_wall = self.wall_distance_grid[coord]
         current_distance_from_start = self.start_area_distances[target_start_area][coord]
-        last_field = None
+        last_field = coord
+        current_field = coord
         found_better = False
         while distance_lost < max_extra_distance:
             found_better = False
+            last_field = current_field
+            current_field = coord
             for (neighbour, dis) in self.get_adjacent_fields(coord):
                 if self.wall_distance_grid[neighbour] > current_distance_from_wall:
                     wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
                     lost_distance = dis + self.start_area_distances[target_start_area][neighbour] - current_distance_from_start
-                    if lost_distance / wall_distance_diff > max_extra_distance:
+                    if distance_lost + (lost_distance / wall_distance_diff) > max_extra_distance:
                         coord = neighbour
                         distance_lost += lost_distance
                         current_distance_from_wall = self.wall_distance_grid[neighbour]
@@ -321,17 +324,18 @@ class StartAreasModel:
                         current_distance_from_start = self.start_area_distances[target_start_area][neighbour]
             if not found_better:
                 for (neighbour, dis) in self.get_adjacent_fields(coord):
-                    if self.wall_distance_grid[neighbour] > current_distance_from_wall:
-                        wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
+                    if self.wall_distance_grid[neighbour] == current_distance_from_wall and neighbour != last_field:
                         lost_distance = dis + self.start_area_distances[target_start_area][
                             neighbour] - current_distance_from_start
-                        if lost_distance / wall_distance_diff > max_extra_distance:
+                        if distance_lost + lost_distance > max_extra_distance:
                             coord = neighbour
                             distance_lost += lost_distance
                             current_distance_from_wall = self.wall_distance_grid[neighbour]
                             found_better = True
                             current_distance_from_start = self.start_area_distances[target_start_area][neighbour]
-                break
+                if not found_better:
+                    break
+
 
         return coord
 
