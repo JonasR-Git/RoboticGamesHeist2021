@@ -122,7 +122,7 @@ class StartAreasModel:
                     if self.is_tile_in_bounds(p):
                         if self.wall_distance_grid[p] == -1:
                             wall_tiles_open_nodes.append(p)
-                        distance = self.wall_distance_grid[top] + dis
+                        distance = self.wall_distance_grid[top] + dis * self
                         if distance < distances_to_block[p]:
                             distances_to_block[p] = distance
             self.start_area_distances.append(distances_to_block)
@@ -273,30 +273,55 @@ class StartAreasModel:
 
 
     def get_next_guard_position_when_guarding_area(self, start_area_index):
-        adversary_coordinate = self.find_closest_valid_point(self.position_to_tuple(
-            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1])))
+        adversary_coordinate = self.position_to_tuple(
+            self.get_2d_position_from_odom(self.enemy_approximate_positions[-1]))
         # start area distances is a list of numpy arrays
         adversary_distance = self.start_area_distances[start_area_index][adversary_coordinate]
-        return self.find_halfway_distance_position_from_coord_to_start_area(start_area_index, adversary_distance,
-                                                                            adversary_coordinate)
+        target_point = self.find_halfway_distance_position_from_coord_to_start_area(
+            start_area_index, adversary_distance,adversary_coordinate)
+        target_point = self.find_closest_valid_point(target_point)
+        target_point = self.push_point_further_from_wall(target_point, start_area_index)
+        return target_point
+
+    def push_point_further_from_wall(self, coord, target_start_area, max_extra_distance = 0.5):
+        distance_lost = 0
+        current_distance_from_wall = self.wall_distance_grid[coord]
+        current_distance_from_start = self.start_area_distances[start_area_index][neighbour]
+        while distance_lost < max_extra_distance:
+            for (neighbour, dis) in self.get_adjacent_fields(coord):
+                if self.wall_distance_grid[neighbour] > current_distance_from_wall:
+                    wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
+                    lost_distance = dis + self.start_area_distances[start_area_index][neighbour] - current_distance_from_start
+                    if(lost_distance / wall_distance_diff > max_extra_distance):
+                        coord = neighbour
+                        current_distance_from_wall = self.wall_distance_grid[neighbour]
+                        current_distance_from_start = self.start_area_distances[start_area_index][neighbour]
+
+        return coord
+
 
     def find_halfway_distance_position_from_coord_to_start_area(self, start_area_index, distance, coord):
         if self.probability_update_iteration >= 10:
             breakpoint()
-        short_distance = math.inf
+        shortest_distance = math.inf
+        furthest_distance_from_wall = 0
         while self.start_area_distances[start_area_index][coord] > distance / 2:
             for (neighbour, _) in self.get_adjacent_fields(coord):
-                if self.start_area_distances[start_area_index][neighbour] < short_distance:
-                    short_distance = self.start_area_distances[start_area_index][neighbour]
+                if self.start_area_distances[start_area_index][neighbour] < shortest_distance:
+                    shortest_distance = self.start_area_distances[start_area_index][neighbour]
                     coord = neighbour
+                    furthest_distance_from_wall = self.wall_distance_grid[neighbour]
+                elif (self.start_area_distances[start_area_index][neighbour] == shortest_distance 
+                        and self.wall_distance_grid[neighbour] > furthest_distance_from_wall):
+                    furthest_distance_from_wall = self.wall_distance_grid[neighbour]
+                    shortest_distance = self.start_area_distances[start_area_index][neighbour]
+                    coord = neighbour
+
         return coord
 
     def is_point_free(self, coord):
         return self.is_coord_considered_free(coord) and self.wall_distance_grid[coord] > self.roboter_half_tile_occupation
-        is_free = self.is_coord_considered_free(coord)
-        for n, _ in self.get_adjacent_fields(coord):
-            is_free = is_free and self.is_coord_considered_free(n)
-        return is_free
+
 
     def find_closest_valid_point(self, coord):
         open_nodes = [(coord[0], coord[1])]
