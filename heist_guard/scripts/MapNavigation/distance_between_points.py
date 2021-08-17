@@ -43,12 +43,12 @@ class Pathfinder:
 
 
     def is_field_valid(self, fieldCoord):
-        return (is_tile_in_bounds(fieldCoord)
+        return (self.is_tile_in_bounds(fieldCoord)
         #check if tile is marked as reachable
         and self.map[fieldCoord])
 
     def is_new_field_valid(self, fieldCoord):
-        return (is_field_valid
+        return (self.is_field_valid
         #check that field was not visited already
         and self.parentOfGridX[fieldCoord] == None)
 
