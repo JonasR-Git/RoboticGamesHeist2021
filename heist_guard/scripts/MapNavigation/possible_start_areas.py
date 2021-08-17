@@ -34,7 +34,7 @@ class StartAreasModel:
         self.is_reachable_threshold = 5
         self.sqrtOf2 = math.sqrt(2)
 
-        self.roboter_size = 0.1
+        self.roboter_size = 0.18
         self.roboter_half_tile_occupation = 0
 
         # if a start area has the likelihood of under this value it is not considered an option
@@ -100,32 +100,38 @@ class StartAreasModel:
 
             wall_tiles_open_nodes = []
 
-            # shift occupancy grid based on the origin of the
-            for x in range(0, self.map_width - max(0, tile_x_movement)):
-                for y in range(0, self.map_height - max(0, tile_x_movement)):
-                    index = self.coord_2_d_to_1_d((x, y))
-                    index_two = self.coord_2_d_to_1_d(
-                        (x + tile_x_movement, y + tile_y_movement))
-                    value = message.data[index]
-                    self.occupancy_grid[index_two] = value
-                    if not self.is_coord_considered_free((x,y)):
-                        wall_tiles.append((x,y))
 
-            self.wall_distance_grid = np.full((self.map_width, self.map_height), -1, dtype=float)
+            if tile_x_movement != 0 or tile_y_movement != 0:
+                # shift occupancy grid based on the origin of the
+                for x in range(0, self.map_width - max(0, tile_x_movement)):
+                    for y in range(0, self.map_height - max(0, tile_x_movement)):
+                        index = self.coord_2_d_to_1_d((x, y))
+                        index_two = self.coord_2_d_to_1_d(
+                            (x + tile_x_movement, y + tile_y_movement))
+                        value = message.data[index]
+                        self.occupancy_grid[index_two] = value
+
+            self.wall_distance_grid = np.full((self.map_width, self.map_height), math.inf, dtype=float)
+
+            for x in range(0, self.map_width):
+                for y in range(0, self.map_height):
+                    if not self.is_coord_considered_free((x, y)):
+                        wall_tiles_open_nodes.append((x, y))
+                        self.wall_distance_grid[(x, y)] = 0
 
             #build wall distance grid
             while wall_tiles_open_nodes:
                 top = wall_tiles_open_nodes.pop(0)
-                if self.wall_distance_grid[top] == -1:
-                    self.wall_distance_grid[top] = 0
                 for (p, dis) in self.get_adjacent_fields(top):
-                    if self.is_tile_in_bounds(p):
-                        if self.wall_distance_grid[p] == -1:
+                    if self.is_tile_in_bounds(p) and self.wall_distance_grid[p] > 0:
+                        if self.wall_distance_grid[p] == math.inf:
                             wall_tiles_open_nodes.append(p)
-                        distance = self.wall_distance_grid[top] + dis * self
-                        if distance < distances_to_block[p]:
-                            distances_to_block[p] = distance
-            self.start_area_distances.append(distances_to_block)
+                        distance = self.wall_distance_grid[top] + dis
+                        if distance < self.wall_distance_grid[p]:
+                            self.wall_distance_grid[p] = distance
+                            if distance < self.roboter_half_tile_occupation * self.map_resolution:
+                                index = self.coord_2_d_to_1_d(p)
+                                self.occupancy_grid[index] = 99
 
             self.has_map = True
 
@@ -234,6 +240,18 @@ class StartAreasModel:
             ((coord[0] + 1, coord[1] + 1), self.sqrtOf2 * self.map_resolution)
         ]
 
+        def get_neighbourhood(self, coord, distance):
+            return [
+                ((coord[0] - 1, coord[1] - 1), self.sqrtOf2 * self.map_resolution),
+                ((coord[0] - 1, coord[1]), 1 * self.map_resolution),
+                ((coord[0] - 1, coord[1] + 1), self.sqrtOf2 * self.map_resolution),
+                ((coord[0], coord[1] - 1), 1 * self.map_resolution),
+                ((coord[0], coord[1] + 1), 1 * self.map_resolution),
+                ((coord[0] + 1, coord[1] - 1), self.sqrtOf2 * self.map_resolution),
+                ((coord[0] + 1, coord[1]), 1 * self.map_resolution),
+                ((coord[0] + 1, coord[1] + 1), self.sqrtOf2 * self.map_resolution)
+            ]
+
     def calculate_start_area_probabilities(self):
         self.start_area_probabilities = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
         self.start_area_mean_probabilities = np.full(self.disconnected_possible_start_areas, 0, dtype=float)
@@ -286,16 +304,34 @@ class StartAreasModel:
     def push_point_further_from_wall(self, coord, target_start_area, max_extra_distance = 0.5):
         distance_lost = 0
         current_distance_from_wall = self.wall_distance_grid[coord]
-        current_distance_from_start = self.start_area_distances[start_area_index][neighbour]
+        current_distance_from_start = self.start_area_distances[target_start_area][coord]
+        last_field = None
+        found_better = False
         while distance_lost < max_extra_distance:
+            found_better = False
             for (neighbour, dis) in self.get_adjacent_fields(coord):
                 if self.wall_distance_grid[neighbour] > current_distance_from_wall:
                     wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
-                    lost_distance = dis + self.start_area_distances[start_area_index][neighbour] - current_distance_from_start
-                    if(lost_distance / wall_distance_diff > max_extra_distance):
+                    lost_distance = dis + self.start_area_distances[target_start_area][neighbour] - current_distance_from_start
+                    if lost_distance / wall_distance_diff > max_extra_distance:
                         coord = neighbour
+                        distance_lost += lost_distance
                         current_distance_from_wall = self.wall_distance_grid[neighbour]
-                        current_distance_from_start = self.start_area_distances[start_area_index][neighbour]
+                        found_better = True
+                        current_distance_from_start = self.start_area_distances[target_start_area][neighbour]
+            if not found_better:
+                for (neighbour, dis) in self.get_adjacent_fields(coord):
+                    if self.wall_distance_grid[neighbour] > current_distance_from_wall:
+                        wall_distance_diff = self.wall_distance_grid[neighbour] - current_distance_from_wall
+                        lost_distance = dis + self.start_area_distances[target_start_area][
+                            neighbour] - current_distance_from_start
+                        if lost_distance / wall_distance_diff > max_extra_distance:
+                            coord = neighbour
+                            distance_lost += lost_distance
+                            current_distance_from_wall = self.wall_distance_grid[neighbour]
+                            found_better = True
+                            current_distance_from_start = self.start_area_distances[target_start_area][neighbour]
+                break
 
         return coord
 
@@ -319,8 +355,8 @@ class StartAreasModel:
 
         return coord
 
-    def is_point_free(self, coord):
-        return self.is_coord_considered_free(coord) and self.wall_distance_grid[coord] > self.roboter_half_tile_occupation
+    def has_point_sufficient_distance_from_wall(self, coord):
+        return self.is_coord_considered_free(coord) and self.wall_distance_grid[coord] > self.roboter_half_tile_occupation * self.map_resolution
 
 
     def find_closest_valid_point(self, coord):
@@ -328,7 +364,7 @@ class StartAreasModel:
         visited = np.full((self.map_width, self.map_height), False, dtype=bool)
         while open_nodes:
             top = open_nodes.pop(0)
-            if self.is_tile_in_bounds(top) and self.is_point_free(top):
+            if self.is_tile_in_bounds(top) and self.is_coord_considered_free(top):
                 return top
 
             for neighbour in self.get_simple_adjacent_fields(top):
