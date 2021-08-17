@@ -362,8 +362,11 @@ class StartAreasModel:
     def has_point_sufficient_distance_from_wall(self, coord):
         return self.is_coord_considered_free(coord) and self.wall_distance_grid[coord] > self.roboter_half_tile_occupation * self.map_resolution
 
+    def clamp_in_map(self, coord):
+        return min(self.map_width - 1, max(0, coord[0])), min(self.map_height - 1, max(0, coord[1]))
 
     def find_closest_valid_point(self, coord):
+        coord = self.clamp_in_map(coord)
         open_nodes = [(coord[0], coord[1])]
         visited = np.full((self.map_width, self.map_height), False, dtype=bool)
         while open_nodes:
