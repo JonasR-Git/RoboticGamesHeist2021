@@ -64,11 +64,6 @@ class StartAreasModel:
         self.frame_id = 0
         self.last_sent = perf_counter()
 
-    def tester(self, x, y):
-        odometry = Odometry()
-        odometry.pose.pose.position.x = x
-        odometry.pose.pose.position.y = y
-        self.listener_callback(odometry)
 
     def map_callback(self, message):
         if not self.has_map:
@@ -133,20 +128,10 @@ class StartAreasModel:
 
             self.has_map = True
 
-            """
-            self.tester(0, 0)
-            self.tester(-2, 3.0)
-            """
-
     def listener_callback(self, message):
         if self.has_map:
             # the first time a position is received
             if self.initial:
-                # alpha = 2 * math.pi * random.random()
-                # x = math.cos(alpha)
-                # y = math.sin(alpha)
-                # message.pose.pose.position.x += x
-                # message.pose.pose.position.y += y
                 self.enemy_approximate_positions.append(message)
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -156,11 +141,6 @@ class StartAreasModel:
             else:
                 if perf_counter() - self.last_sent < 1:
                     return
-                # alpha = 2 * math.pi * random.random()
-                # x = math.cos(alpha)
-                # y = math.sin(alpha)
-                # message.pose.pose.position.x += x
-                # message.pose.pose.position.x += y
                 self.enemy_approximate_positions.append(message)
                 self.probability_of_point_from_start_block_after_seconds(message,
                                                                          (perf_counter() - self.start_time) * MAX_SPEED)
@@ -202,7 +182,6 @@ class StartAreasModel:
         pose.pose.position.x = p[0] - self.map_width_in_meter / 2
         pose.pose.position.y = p[1] - self.map_height_in_meter / 2
         pose.pose.orientation.w = 1
-        # pose.pose.position.z = self.start_area_probabilities[start_area]
         return pose
 
     def is_coord_considered_free(self, coord):
