@@ -27,7 +27,7 @@ class StartAreasModel:
         self.map_height_in_meter = 0
 
         # noise error data and config
-        self.max_error_distance = 0.5
+        self.max_error_distance = 1.5
         self.max_noise_tile_error = 0
         self.noise_diameter = 0
         # a tile is considered free if it is under this value
@@ -313,7 +313,7 @@ class StartAreasModel:
             pass
         shortest_distance = math.inf
         furthest_distance_from_wall = 0
-        while self.start_area_distances[start_area_index][coord] > distance / 2:
+        while self.start_area_distances[start_area_index][coord] > distance / 2.05:
             for (neighbour, _) in self.get_adjacent_fields(coord):
                 if self.start_area_distances[start_area_index][neighbour] < shortest_distance:
                     shortest_distance = self.start_area_distances[start_area_index][neighbour]
