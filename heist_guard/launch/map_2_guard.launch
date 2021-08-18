@@ -7,6 +7,6 @@
     <arg name="guard_initial_pose_a" default="0.0"/>
   </include>
 
-  <node pkg="heist_guard" type="possible_start_areas.py" name="heist_guard"/>
+  <node pkg="heist_guard" type="possible_start_areas.py" name="possible_start_areas"/>
 
 </launch>
