@@ -1,34 +1,41 @@
 <launch>
-  <!-- Arguments -->
-  <arg name="model" />
-  <arg name="map_file" default="$(find heist_guard/maps/map_2/map_2.yaml"/>
-  <arg name="open_rviz"/>
-  <arg name="move_forward_only"/>
+  <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+  <arg name="map_file" default="$(find heist_guard)/maps/map_2/map_2.yaml"/>
+  <arg name="open_rviz" default="true"/>
+  <arg name="move_forward_only" default="false"/>
 
-  <arg name="first_tb3"/>
+  <arg name="guard_initial_pose_x" default="2.0"/>
+  <arg name="guard_initial_pose_y" default="-1.0"/>
+  <arg name="guard_initial_pose_a" default="1.57"/>
 
-  <arg name="first_tb3_x_pos" default=" 3.25"/>
-  <arg name="first_tb3_y_pos" default=" 3.0"/>
-  <arg name="first_tb3_z_pos" default=" 0.0"/>
-  <arg name="first_tb3_yaw"   default=" 0.0"/>
+  <!-- Turtlebot3 -->
+  <include file="$(find turtlebot3_bringup)/launch/turtlebot3_remote.launch">
+    <arg name="model" value="$(arg model)" />
+  </include>
 
-
-  <node name="start_area" type="possible_start_areas.py" pkg="heist_guard" />
-
-  <group ns = "$(arg first_tb3)">
   <!-- Map server -->
-  <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)">
-   <param name="frame_id" value="/map" />
-  </node>
+  <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)"/>
 
-   <!-- AMCL -->
-   <include file="$(find heist_guard)/launch/amcl_guard.launch"/>
+  <!-- AMCL -->
+  <include file="$(find heist_guard)/launch/amcl.launch">
+    <arg name="scan_topic" value="/guard/scan" />
+    <arg name="initial_pose_x" value="$(arg guard_initial_pose_x)"/>
+    <arg name="initial_pose_y" value="$(arg guard_initial_pose_y)"/>
+    <arg name="initial_pose_a" value="$(arg guard_initial_pose_a)"/>
+  </include>
 
-   <!-- Move base -->
-   <include file="$(find heist_guard)/launch/move_base_guard.launch">
+  <!-- move_base -->
+  <include file="$(find heist_guard)/launch/move_base.launch">
     <arg name="model" value="$(arg model)" />
     <arg name="move_forward_only" value="$(arg move_forward_only)"/>
-   </include>
+    <arg name="cmd_vel_topic" value="/guard/cmd_vel" />
+    <arg name="odom_topic" value="/guard/odom" />
+  </include>
+
+  <!-- rviz -->
+  <group if="$(arg open_rviz)">
+    <node pkg="rviz" type="rviz" name="rviz" required="true"
+          args="-d $(find heist_guard)/rviz/turtlebot3_navigation.rviz"/>
   </group>
 
 </launch>

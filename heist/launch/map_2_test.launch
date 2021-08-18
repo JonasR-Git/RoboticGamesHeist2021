@@ -7,7 +7,6 @@
   <arg name="model" default="burger"/>
   <arg name="first_tb3"  default="guard"/>
   <arg name="second_tb3" default="evader"/>
-  <arg name="map_file" value="$(find heist_guard)/maps/map_2/map_2.yaml"/>
 
   <!-- guard start position -->
   <arg name="first_tb3_x_pos" default=" 3.25"/>
@@ -69,13 +68,6 @@
   <node name="heist_tracker" type="heist_tracker.py" pkg="heist"  />
   <node name="heist_client" type="heist_client.py" pkg="heist"  />
 
+   <include file="$(find heist_guard)/launch/map_2_guard.launch"/>
 
-  <include file="$(find heist_guard)/launch/guard.launch">
-    <arg name="model" value="$(arg model)"/>
-    <arg name="first_tb3" value="$(arg first_tb3)"/>
-    <arg name="x_pos" value="$(arg first_tb3_x_pos)"/>
-    <arg name="y_pos" value="$(arg first_tb3_y_pos)"/>
-    <arg name="a_pos" value="$(arg first_tb3_yaw)"/>
-    <arg name="map_file" value="$(arg map_file)"/>
-  </include>
 </launch>

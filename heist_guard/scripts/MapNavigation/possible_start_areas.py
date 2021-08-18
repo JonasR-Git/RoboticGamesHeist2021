@@ -15,9 +15,9 @@ MAX_SPEED = 0.2
 class StartAreasModel:
 
     def __init__(self):
-        rospy.Subscriber("/guard/map", OccupancyGrid, self.map_callback)
+        rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
         rospy.Subscriber("/guard/perception_of_evader", Odometry, self.listener_callback)
-        self.pub = rospy.Publisher('/guard/move_base_simple/goal', PoseStamped, queue_size=10)
+        self.pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
         # occupancy grid data, grid config of occupancy grid
         self.occupancy_grid = []
         self.map_resolution = 0
@@ -154,7 +154,7 @@ class StartAreasModel:
                 self.calculate_start_area_probabilities()
                 self.build_start_area_distances()
             else:
-                if perf_counter() - self.last_sent < 2:
+                if perf_counter() - self.last_sent < 1:
                     return
                 # alpha = 2 * math.pi * random.random()
                 # x = math.cos(alpha)
