@@ -7,7 +7,10 @@
   <arg name="x_pos"/>
   <arg name="y_pos"/>
   <arg name="z_pos"/>
-  
+
+  <!-- Robot Navigation -->
+  <node name="start_area" type="possible_start_areas.py" pkg="heist_guard" />
+
   <!-- Turtlebot3 -->
   <include file="$(find turtlebot3_bringup)/launch/turtlebot3_remote.launch">
     <arg name="model" value="$(arg model)" />

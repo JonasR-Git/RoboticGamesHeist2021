@@ -4,7 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /RobotModel_tb3_01/Links1
+        - /RobotModel_evader/Links1
         - /TF1/Frames1
         - /TF1/Tree1
         - /Global Map1/Costmap1
@@ -12,8 +12,8 @@ Panels:
         - /Local Map1/Polygon1
         - /Local Map1/Costmap1
         - /Local Map1/Planner1
-        - /Goal_tb3_01
-        - /Goal_tb3_11
+        - /Goal_guard
+        - /Goal_evader
       Splitter Ratio: 0.5473440885543823
     Tree Height: 455
   - Class: rviz/Selection
@@ -36,7 +36,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan_tb3_1
+    SyncSource: LaserScan_evader
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -72,7 +72,7 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-      Name: RobotModel_tb3_0
+      Name: RobotModel_guard
       Robot Description: guard/robot_description
       TF Prefix: guard
       Update Interval: 0
@@ -88,7 +88,7 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-      Name: RobotModel_tb3_1
+      Name: RobotModel_evader
       Robot Description: evader/robot_description
       TF Prefix: evader
       Update Interval: 0
@@ -126,7 +126,7 @@ Visualization Manager:
       Max Intensity: 13069
       Min Color: 0; 0; 0
       Min Intensity: 28
-      Name: LaserScan_tb3_0
+      Name: LaserScan_guard
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -297,7 +297,7 @@ Visualization Manager:
       Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
-      Name: Goal_tb3_0
+      Name: Goal_guard
       Shaft Length: 1
       Shaft Radius: 0.05000000074505806
       Shape: Arrow
@@ -322,7 +322,7 @@ Visualization Manager:
       Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: LaserScan_tb3_1
+      Name: LaserScan_evader
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -342,7 +342,7 @@ Visualization Manager:
       Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
-      Name: Goal_tb3_1
+      Name: Goal_evader
       Shaft Length: 1
       Shaft Radius: 0.05000000074505806
       Shape: Arrow
@@ -390,7 +390,7 @@ Visualization Manager:
       Length: 0.30000001192092896
       Line Style: Lines
       Line Width: 0.029999999329447746
-      Name: Path_tb3_1
+      Name: Path_evader
       Offset:
         X: 0
         Y: 0

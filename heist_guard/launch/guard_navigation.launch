@@ -13,6 +13,8 @@
   <arg name="first_tb3_yaw"   default=" 0.0"/>
 
 
+  <node name="start_area" type="possible_start_areas.py" pkg="heist_guard" />
+
   <group ns = "$(arg first_tb3)">
   <!-- Map server -->
   <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)">
