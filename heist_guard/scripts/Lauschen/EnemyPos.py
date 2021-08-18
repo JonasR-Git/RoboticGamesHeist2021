@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt
+#!/usr/bin/env python3.8
 import math
-import random
 import numpy as np
+import rospy
+from nav_msgs.msg import Odometry
 
 ROBOTER_SPEED = 0.22
 TIME_INTERVAL = 2
@@ -52,209 +53,62 @@ def get_points_closer_together(x1, x2, y1, y2):
 
 class AdjustEnemyPosition:
 
-    def __init__(self, enemy_pos_input):
-        for pos in enemy_pos_input:
-            self.enemy_pos_original.append(pos)
+    def __init__(self):
+        rospy.Subscriber("/guard/perception_of_evader", Odometry, self.listener_callback)
+        pub = rospy.publisher('/improved_position', Odometry, queue_size=5)
+        rospy.init_node('position_improvement', anonymous=True)
 
-    enemy_pos_original = []
-    enemy_pos_noise = []
+        self.enemy_pos_noise_x = []
+        self.enemy_pos_noise_y = []
 
-    enemy_pos_x = []
-    enemy_pos_y = []
+        self.enemy_pos_refactor_x_average = []
+        self.enemy_pos_refactor_y_average = []
 
-    enemy_pos_noise_x = []
-    enemy_pos_noise_y = []
+        self.enemy_pos_refactor_x_closer = []
+        self.enemy_pos_refactor_y_closer = []
 
-    enemy_pos_refactor_x_idea1 = []
-    enemy_pos_refactor_y_idea1 = []
+        self.enemy_pos_refactor_x_both = []
+        self.enemy_pos_refactor_y_both = []
 
-    enemy_pos_refactor_x_idea2 = []
-    enemy_pos_refactor_y_idea2 = []
+    def listener_callback(self, message):
+        self.enemy_pos_noise_x.append(message.pose.pose.position.x)
+        self.enemy_pos_noise_y.append(message.pose.pose.position.y)
+        self.idea_get_points_closer_together()
+        self.idea_average_points()
+        self.idea_average_points_after_get_points_closer()
+        odom = Odometry()
+        if len(self.enemy_pos_refactor_x_both)>0:
+            odom.pose.pose.position.x = self.enemy_pos_refactor_x_both[-1]
+            odom.pose.pose.position.y = self.enemy_pos_refactor_y_both[-1]
+            pub.publish(odom)
 
-    enemy_pos_refactor_x_idea3 = []
-    enemy_pos_refactor_y_idea3 = []
-
-    def set_noise_on_enemy_pos(self):
-        i = 0
-        while i < len(self.enemy_pos_original):
-            random_x = 10
-            random_y = 10
-            while MAX_NOISE < pow(random_x, 2) + pow(random_y, 2) > MAX_NOISE / 2:
-                if random.uniform(0, 1) > 0:
-                    random_x = - random.uniform(-MAX_NOISE, MAX_NOISE)
-                else:
-                    random_x = random.uniform(-MAX_NOISE, MAX_NOISE)
-
-                if random.uniform(0, 1) > 0:
-                    random_y = - random.uniform(-MAX_NOISE, MAX_NOISE)
-                else:
-                    random_y = random.uniform(-MAX_NOISE, MAX_NOISE)
-
-            self.enemy_pos_noise.append(self.enemy_pos_original[i] + random_x)
-            self.enemy_pos_noise.append(self.enemy_pos_original[i + 1] + random_y)
-            i = i + 2
-
-    def split_in_x_y(self):
-        i = 0
-        while i < len(self.enemy_pos_original):
-            if i % 2 == 0:
-                self.enemy_pos_x.append(self.enemy_pos_original[i])
-                self.enemy_pos_noise_x.append(self.enemy_pos_noise[i])
-            else:
-                self.enemy_pos_y.append(self.enemy_pos_original[i])
-                self.enemy_pos_noise_y.append(self.enemy_pos_noise[i])
-            i = i + 1
 
     def idea_get_points_closer_together(self):
-        self.enemy_pos_refactor_x_idea2 = np.copy(self.enemy_pos_noise_x)
-        self.enemy_pos_refactor_y_idea2 = np.copy(self.enemy_pos_noise_y)
-        i = len(self.enemy_pos_refactor_x_idea2) - 1
-        while i > 0:
-            self.enemy_pos_refactor_x_idea2[i], self.enemy_pos_refactor_x_idea2[i - 1], self.enemy_pos_refactor_y_idea2[
-                i], self.enemy_pos_refactor_y_idea2[i - 1] = get_points_closer_together(
-                self.enemy_pos_refactor_x_idea2[i], self.enemy_pos_refactor_x_idea2[i - 1],
-                self.enemy_pos_refactor_y_idea2[i], self.enemy_pos_refactor_y_idea2[i - 1])
-            i = i - 1
+        self.enemy_pos_refactor_x_closer = np.copy(self.enemy_pos_noise_x)
+        self.enemy_pos_refactor_y_closer = np.copy(self.enemy_pos_noise_y)
+        if len(self.enemy_pos_refactor_x_closer) > 1:
+            self.enemy_pos_refactor_x_closer[-1], self.enemy_pos_refactor_x_closer[2], self.enemy_pos_refactor_y_closer[
+                -1], self.enemy_pos_refactor_y_closer[-2] = get_points_closer_together(
+                self.enemy_pos_refactor_x_closer[-1], self.enemy_pos_refactor_x_closer[-2],
+                self.enemy_pos_refactor_y_closer[-1], self.enemy_pos_refactor_y_closer[-2])
 
     def idea_average_points(self):
-        number_of_pathpoints = len(self.enemy_pos_x) - 1
-        i = 0
-        while i < number_of_pathpoints:
-            self.enemy_pos_refactor_x_idea1.append((self.enemy_pos_noise_x[i] + self.enemy_pos_noise_x[i + 1]) / 2)
-            self.enemy_pos_refactor_y_idea1.append((self.enemy_pos_noise_y[i] + self.enemy_pos_noise_y[i + 1]) / 2)
-            i = i + 1
+        if len(self.enemy_pos_noise_x) > 1:
+            self.enemy_pos_refactor_x_average.append((self.enemy_pos_noise_x[-2] + self.enemy_pos_noise_x[-1]) / 2)
+            self.enemy_pos_refactor_y_average.append((self.enemy_pos_noise_y[-2] + self.enemy_pos_noise_y[-1]) / 2)
+
 
     def idea_average_points_after_get_points_closer(self):
-        number_of_pathpoints2 = len(self.enemy_pos_x) - 1
-        i = 0
-        while i < number_of_pathpoints2:
-            self.enemy_pos_refactor_x_idea3.append(
-                (self.enemy_pos_refactor_x_idea2[i] + self.enemy_pos_refactor_x_idea2[i + 1]) / 2)
-            self.enemy_pos_refactor_y_idea3.append(
-                (self.enemy_pos_refactor_y_idea2[i] + self.enemy_pos_refactor_y_idea2[i + 1]) / 2)
-            i = i + 1
-
-    def plot_the_result(self):
-        figure_1, ax_1 = plt.subplots()
-        figure_2, ax_2 = plt.subplots()
-        figure_3, ax_3 = plt.subplots()
-        figure_4, ax_4 = plt.subplots()
-        figure_5, ax_5 = plt.subplots()
-        ax_1.plot(self.enemy_pos_x, self.enemy_pos_y, 'g')
-        ax_2.plot(self.enemy_pos_noise_x, self.enemy_pos_noise_y, 'r')
-        ax_3.plot(self.enemy_pos_refactor_x_idea1, self.enemy_pos_refactor_y_idea1, 'b')
-        ax_4.plot(self.enemy_pos_refactor_x_idea2, self.enemy_pos_refactor_y_idea2, 'k')
-        ax_5.plot(self.enemy_pos_refactor_x_idea3, self.enemy_pos_refactor_y_idea3, 'grey')
-        plt.show()
-
-    def simulate(self):
-        self.idea_average_points()
-        self.idea_get_points_closer_together()
-        self.idea_average_points_after_get_points_closer()
+        if len(self.enemy_pos_noise_x) > 1:
+            self.enemy_pos_refactor_x_both.append(
+                (self.enemy_pos_refactor_x_closer[-2] + self.enemy_pos_refactor_x_closer[-1]) / 2)
+            self.enemy_pos_refactor_y_both.append(
+                (self.enemy_pos_refactor_y_closer[-2] + self.enemy_pos_refactor_y_closer[-1]) / 2)
 
 
-enemy_pos_data = [
-    1.2, 0.4,
-    1.3, 0.7,
-    1.5, 0.9,
-    1.5, 1.3,
-    1.5, 1.7,
-    1.1, 1.7,
-    0.7, 1.7,
-    0.7, 2.1,
-    0.7, 2.3,
-    1.0, 2.4,
-    1.4, 2.4,
-    1.4, 2.4,
-    1.7, 2.4,
-    1.8, 2.4,
-    1.8, 2.7,
-    1.8, 3.0,
-    1.8, 3.4,
-    1.7, 3.7,
-    1.8, 4.0,
-    1.8, 4.3,
-    1.5, 4.3,
-    1.2, 4.3,
-    0.8, 4.3,
-    0.4, 4.3,
-    0.05, 4.3,
-    0.05, 3.9,
-    0.05, 3.5,
-    0.05, 3.1,
-    0.05, 2.7,
-    0.05, 3.1,
-    0.05, 3.5,
-    0.05, 3.9,
-    0.05, 4.3,
-    0.05, 4.7,
-    0.05, 4.8,
-    0.05, 4.9,
-    0.15, 5.2,
-    0.3, 5.4,
-    0.6, 5.5,
-    0.6, 5.8,
-    0.6, 6.1,
-    0.6, 6.4,
-    0.6, 6.7,
-    0.6, 7.1,
-    0.7, 7.2,
-    1.05, 7.1,
-    1.3, 7.0,
-    1.6, 7.0,
-    1.9, 7.0,
-    2.3, 7.0,
-    2.7, 7.0,
-    3.0, 7.0,
-    3.3, 7.0,
-    3.5, 6.8,
-    3.7, 6.6,
-    3.9, 6.4,
-    3.7, 6.2,
-    3.5, 6.0,
-    3.2, 5.9,
-    2.9, 5.8,
-    2.6, 5.8,
-    2.3, 5.7,
-    2.0, 5.6,
-]
-
-distance_original_noise = 0
-distance_original_idea1 = 0
-distance_original_idea2 = 0
-distance_original_idea3 = 0
-test = AdjustEnemyPosition(enemy_pos_data)
-
-for i in range(0, 10):
-    test.set_noise_on_enemy_pos()
-    test.split_in_x_y()
-    test.simulate()
-    distance_original_noise = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_noise_x[0],
-                                                              test.enemy_pos_y[0], test.enemy_pos_noise_y[0])
-    distance_original_idea1 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea1[0],
-                                                              test.enemy_pos_y[0], test.enemy_pos_refactor_y_idea1[0])
-    distance_original_idea2 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea2[0],
-                                                              test.enemy_pos_y[0], test.enemy_pos_refactor_y_idea2[0])
-    distance_original_idea3 = calculate_distance_between_2_points(test.enemy_pos_x[0], test.enemy_pos_refactor_x_idea3[0],
-                                                              test.enemy_pos_y[0], test.enemy_pos_refactor_y_idea3[0])
-
-    np.delete(test.enemy_pos_original, [0, len(test.enemy_pos_original) - 1])
-    np.delete(test.enemy_pos_noise, [0, len(test.enemy_pos_noise)-1])
-    np.delete(test.enemy_pos_x, [0, len(test.enemy_pos_x) - 1])
-    np.delete(test.enemy_pos_y, [0, len(test.enemy_pos_y) - 1])
-    np.delete(test.enemy_pos_noise_x, [0, len(test.enemy_pos_noise_x) - 1])
-    np.delete(test.enemy_pos_noise_y, [0, len(test.enemy_pos_noise_y) - 1])
-    np.delete(test.enemy_pos_refactor_x_idea1, [0, len(test.enemy_pos_refactor_x_idea1) - 1])
-    np.delete(test.enemy_pos_refactor_y_idea1, [0, len(test.enemy_pos_refactor_y_idea1) - 1])
-    np.delete(test.enemy_pos_refactor_x_idea2, [0, len(test.enemy_pos_refactor_x_idea2) - 1])
-    np.delete(test.enemy_pos_refactor_y_idea2, [0, len(test.enemy_pos_refactor_y_idea2) - 1])
-    np.delete(test.enemy_pos_refactor_x_idea3, [0, len(test.enemy_pos_refactor_x_idea3) - 1])
-    np.delete(test.enemy_pos_refactor_y_idea3, [0, len(test.enemy_pos_refactor_y_idea3) - 1])
-    print(len(test.enemy_pos_x))
-
-print(distance_original_noise/10)
-print(distance_original_idea1/10)
-print(distance_original_idea2/10)
-print(distance_original_idea3/10)
 
 
+if __name__ == '__main__':
+    rospy.init_node('point_improvement')
+    AdjustEnemyPosition()
+    rospy.spin()
