@@ -55,8 +55,7 @@ class AdjustEnemyPosition:
 
     def __init__(self):
         rospy.Subscriber("/guard/perception_of_evader", Odometry, self.listener_callback)
-        pub = rospy.publisher('/improved_position', Odometry, queue_size=5)
-        rospy.init_node('position_improvement', anonymous=True)
+        self.pub = rospy.Publisher('/improved_position', Odometry, queue_size=5)
 
         self.enemy_pos_noise_x = []
         self.enemy_pos_noise_y = []
@@ -80,14 +79,14 @@ class AdjustEnemyPosition:
         if len(self.enemy_pos_refactor_x_both)>0:
             odom.pose.pose.position.x = self.enemy_pos_refactor_x_both[-1]
             odom.pose.pose.position.y = self.enemy_pos_refactor_y_both[-1]
-            pub.publish(odom)
+            self.pub.publish(odom)
 
 
     def idea_get_points_closer_together(self):
         self.enemy_pos_refactor_x_closer = np.copy(self.enemy_pos_noise_x)
         self.enemy_pos_refactor_y_closer = np.copy(self.enemy_pos_noise_y)
         if len(self.enemy_pos_refactor_x_closer) > 1:
-            self.enemy_pos_refactor_x_closer[-1], self.enemy_pos_refactor_x_closer[2], self.enemy_pos_refactor_y_closer[
+            self.enemy_pos_refactor_x_closer[-1], self.enemy_pos_refactor_x_closer[-2], self.enemy_pos_refactor_y_closer[
                 -1], self.enemy_pos_refactor_y_closer[-2] = get_points_closer_together(
                 self.enemy_pos_refactor_x_closer[-1], self.enemy_pos_refactor_x_closer[-2],
                 self.enemy_pos_refactor_y_closer[-1], self.enemy_pos_refactor_y_closer[-2])

@@ -16,7 +16,7 @@ class StartAreasModel:
 
     def __init__(self):
         rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
-        rospy.Subscriber("/guard/perception_of_evader", Odometry, self.listener_callback)
+        rospy.Subscriber('/improved_position', Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
         # occupancy grid data, grid config of occupancy grid
         self.occupancy_grid = []

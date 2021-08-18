@@ -8,5 +8,6 @@
   </include>
 
   <node pkg="heist_guard" type="possible_start_areas.py" name="possible_start_areas"/>
+  <node pkg="heist_guard" type="EnemyPos.py" name="point_improvement"/>
 
 </launch>
