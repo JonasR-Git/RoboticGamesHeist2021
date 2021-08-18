@@ -1,4 +1,5 @@
 <launch>
+
   <include file="$(find heist_guard)/launch/guard_navigation.launch">
     <arg name="map_file" default="$(find heist_guard)/maps/map_2/map_2.yaml"/>
     <arg name="guard_initial_pose_x" default="3.25"/>

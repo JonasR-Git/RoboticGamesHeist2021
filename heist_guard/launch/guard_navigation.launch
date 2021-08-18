@@ -14,7 +14,9 @@
   </include>
 
   <!-- Map server -->
-  <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)"/>
+  <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)">
+    <param name="global_frame_id" value="/map"/>
+  </node>
 
   <!-- AMCL -->
   <include file="$(find heist_guard)/launch/amcl.launch">
@@ -37,5 +39,4 @@
     <node pkg="rviz" type="rviz" name="rviz" required="true"
           args="-d $(find heist_guard)/rviz/turtlebot3_navigation.rviz"/>
   </group>
-
 </launch>
