@@ -1,5 +1,15 @@
 # RoboticGamesHeist2021
 
+###Run Instructions
+
+  How to start the Simulation:
+  - `$ roslaunch heist map_2.launch`
+
+  For other Maps:
+  - `Change the map file in guard_navigation to the right .yaml file`
+  - `Add in the Launch file:`
+    - `<include file="$(find heist_guard)/launch/map_2_guard.launch"/>`
+
 ### Miscellaneous
 - roslaunch [package] [launch file]
     - Starts Gazebo with Turtlebot3 and the map environment
