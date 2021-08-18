@@ -16,7 +16,7 @@ class StartAreasModel:
 
     def __init__(self):
         rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
-        rospy.Subscriber("/evader/odom", Odometry, self.listener_callback)
+        rospy.Subscriber("/guard/perception_of_evader", Odometry, self.listener_callback)
         self.pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
         # occupancy grid data, grid config of occupancy grid
         self.occupancy_grid = []
@@ -142,11 +142,11 @@ class StartAreasModel:
         if self.has_map:
             # the first time a position is received
             if self.initial:
-                alpha = 2 * math.pi * random.random()
-                x = math.cos(alpha)
-                y = math.sin(alpha)
+                # alpha = 2 * math.pi * random.random()
+                # x = math.cos(alpha)
+                # y = math.sin(alpha)
                 # message.pose.pose.position.x += x
-                # message.pose.pose.position.x += y
+                # message.pose.pose.position.y += y
                 self.enemy_approximate_positions.append(message)
                 self.default_orientation = message.pose.pose.orientation
                 self.initial = False
@@ -154,11 +154,11 @@ class StartAreasModel:
                 self.calculate_start_area_probabilities()
                 self.build_start_area_distances()
             else:
-                if perf_counter() - self.last_sent < 1:
+                if perf_counter() - self.last_sent < 2:
                     return
-                alpha = 2 * math.pi * random.random()
-                x = math.cos(alpha)
-                y = math.sin(alpha)
+                # alpha = 2 * math.pi * random.random()
+                # x = math.cos(alpha)
+                # y = math.sin(alpha)
                 # message.pose.pose.position.x += x
                 # message.pose.pose.position.x += y
                 self.enemy_approximate_positions.append(message)
