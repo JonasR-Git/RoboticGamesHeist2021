@@ -1,6 +1,6 @@
 # RoboticGamesHeist2021
 
-###Run Instructions
+### Run Instructions
 
   How to start the Simulation:
   - `$ roslaunch heist map_2.launch`
