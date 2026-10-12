@@ -1,4 +1,24 @@
-# RoboticGamesHeist2021
+# Robotic Games Heist (2021)
+
+A university team project exploring navigation and interception in a ROS/Gazebo TurtleBot3 heist simulation. The repository contains simulation environments, perception and tracking nodes, and guard navigation logic using occupancy grids and probability updates.
+
+This is historical coursework from 2021. It is useful as a record of the implementation and team collaboration; the original ROS environment has not been revalidated for current systems. No project test suite or CI workflow is included.
+
+## Repository structure
+
+- `heist/`: simulation worlds, maps and launch configuration.
+- `heist_guard/`: guard perception, tracking and navigation.
+- `heist_guard/scripts/MapNavigation/possible_start_areas.py`: occupancy-grid analysis and probability-based interception positioning.
+
+## Team and attribution
+
+The project was built by [Jonas Fendel](https://github.com/JonasR-Git), [florian-kohrs](https://github.com/florian-kohrs) and [Raichuu41](https://github.com/Raichuu41). Individual contributions are recorded in the [commit history](https://github.com/JonasR-Git/RoboticGamesHeist2021/commits/main/). The complete project should be attributed to the team.
+
+No repository license has been published, and the ROS package manifests still contain license placeholders. Public visibility should not be read as a license grant.
+
+## Original development notes
+
+The notes below are preserved from the original project. They assume its ROS/catkin, Gazebo and TurtleBot3 environment; they are not a verified current installation guide.
 
 ### Run Instructions
 
